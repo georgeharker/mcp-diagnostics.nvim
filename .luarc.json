@@ -1,0 +1,10 @@
+{
+    "Lua": {
+        "diagnostics": {
+            "unusedLocalExclude": [
+                "_*"
+            ],
+            "globals": [ "vim" ]
+        }
+    }
+}

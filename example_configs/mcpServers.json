@@ -1,0 +1,61 @@
+{
+  "mcpServers": {
+    "mcp-diagnostics": {
+      "command": "node",
+      "args": ["/absolute/path/to/mcp-diagnostics/server/mcp-diagnostics/dist/index.js"],
+      "env": {
+        "NVIM_SERVER_ADDRESS": "/tmp/nvim.sock"
+      }
+    },
+    "mcp-diagnostics-tcp": {
+      "command": "node", 
+      "args": ["/absolute/path/to/mcp-diagnostics/server/mcp-diagnostics/dist/index.js"],
+      "env": {
+        "NVIM_SERVER_ADDRESS": "127.0.0.1:6666"
+      }
+    },
+    "mcp-diagnostics-auto-launch": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/mcp-diagnostics/server/mcp-diagnostics/dist/index.js", 
+        "--launch-nvim"
+      ],
+      "env": {
+        "NVIM_SERVER_ADDRESS": "/tmp/nvim.sock"
+      }
+    },
+    "mcp-diagnostics-auto-launch-tcp": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/mcp-diagnostics/server/mcp-diagnostics/dist/index.js",
+        "--launch-nvim",
+        "--tcp-port", "6666"
+      ],
+      "env": {
+        "NVIM_SERVER_ADDRESS": "127.0.0.1:6666"
+      }
+    },
+    "mcp-diagnostics-headless-auto": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/mcp-diagnostics/server/mcp-diagnostics/dist/index.js",
+        "--launch-nvim",
+        "--headless"
+      ],
+      "env": {
+        "NVIM_SERVER_ADDRESS": "/tmp/nvim.sock"
+      }
+    },
+    "mcp-diagnostics-custom-config": {
+      "command": "node",
+      "args": [
+        "/absolute/path/to/mcp-diagnostics/server/mcp-diagnostics/dist/index.js",
+        "--launch-nvim",
+        "--nvim-config", "/path/to/custom/init.lua"
+      ],
+      "env": {
+        "NVIM_SERVER_ADDRESS": "/tmp/nvim.sock"
+      }
+    }
+  }
+}

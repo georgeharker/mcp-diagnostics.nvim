@@ -1,0 +1,32 @@
+{
+  "name": "mcp-neovim-diagnostics",
+  "version": "1.0.0",
+  "description": "MCP server for sharing Neovim diagnostics and LSP results with chat systems. Supports both TypeScript and native Lua (mcphub.nvim) implementations.",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "start:tcp": "node dist/index.js --tcp-port 3000",
+    "start:tcp:all": "node dist/index.js --tcp-port 3000 --tcp-host 0.0.0.0",
+    "start:nvim-server": "node dist/index.js --launch-nvim",
+    "start:nvim-server:tcp": "node dist/index.js --launch-nvim --tcp-port 3000",
+    "dev": "tsc && node dist/index.js",
+    "dev:tcp": "tsc && node dist/index.js --tcp-port 3000",
+    "watch": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.17.4",
+    "neovim": "^5.3.0",
+    "ws": "^8.16.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "@types/ws": "^8.5.10",
+    "typescript": "^5.9.2"
+  },
+  "keywords": ["mcp", "neovim", "diagnostics", "lsp", "claude"],
+  "author": "MCP Diagnostics Server",
+  "license": "MIT"
+}
