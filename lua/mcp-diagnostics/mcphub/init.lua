@@ -16,6 +16,10 @@ local default_config = {
   auto_reload_files = true,  -- Automatically reload files when they change on disk
 }
 
+function M.get_config()
+  return rawget(_G, '_mcp_diagnostics_mcphub_config')
+end
+
 -- Main setup function with unified configuration options
 function M.setup(user_config)
   user_config = user_config or {}

@@ -6,8 +6,21 @@ local health = vim.health
 function M.check()
   health.start("MCP Diagnostics Plugin")
 
-  -- Store server config for later use
-  local server_config = rawget(_G, '_mcp_diagnostics_server_config')
+  -- Try to get configurations using the proper modules
+  local mcphub_config = nil
+  local server_config = nil
+
+  -- Check for mcphub configuration
+  local has_mcphub_module, mcphub_module = pcall(require, "mcp-diagnostics.mcphub.init")
+  if has_mcphub_module then
+    mcphub_config = mcphub_module.get_config()
+  end
+
+  -- Check for server configuration
+  local has_server_module, server_module = pcall(require, "mcp-diagnostics.server.init")
+  if has_server_module then
+    server_config = server_module.get_config()
+  end
 
   -- Check plugin installation
   local has_plugin, plugin = pcall(require, "mcp-diagnostics")
@@ -19,8 +32,8 @@ function M.check()
   end
 
   -- Check configuration
-  if rawget(_G, '_mcp_diagnostics_mcphub_config') then
-    local config = rawget(_G, '_mcp_diagnostics_mcphub_config')
+  if mcphub_config then
+    local config = mcphub_config
     health.ok("Configuration found")
     health.info("Server name: " .. (config.server_name or "unknown"))
     health.info("Display name: " .. (config.displayName or "unknown"))
@@ -35,7 +48,7 @@ function M.check()
     if config.debug then
       health.info("Debug mode enabled")
     end
-  elseif rawget(_G, '_mcp_diagnostics_server_config') then
+  elseif server_config then
     health.ok("Configuration found")
     health.info("Mode: server")
   else
@@ -45,7 +58,7 @@ function M.check()
   health.start("Dependencies")
 
   -- Check mcphub.nvim if in mcphub mode
-  if rawget(_G, '_mcp_diagnostics_mcphub_config') then
+  if mcphub_config then
     local has_mcphub, _mcphub = pcall(require, "mcphub")
     if has_mcphub then
       health.ok("mcphub.nvim is available")
@@ -81,7 +94,7 @@ function M.check()
       health.ok(module_name .. " loaded")
     else
       -- Only error if it's a required module for current mode
-      if rawget(_G, '_mcp_diagnostics_mcphub_config') and module_name:match("mcphub") then
+      if mcphub_config and module_name:match("mcphub") then
         health.error(module_name .. " failed to load: " .. tostring(result))
       elseif server_config and module_name:match("server") then
         health.error(module_name .. " failed to load: " .. tostring(result))
@@ -183,7 +196,7 @@ function M.check()
 
   health.start("Recommendations")
 
-  if not rawget(_G, '_mcp_diagnostics_mcphub_config') and not rawget(_G, '_mcp_diagnostics_server_config') then
+  if not mcphub_config and not server_config then
     health.info("Run require('mcp-diagnostics').setup({ mode = 'mcphub' }) to get started")
   end
 

@@ -26,6 +26,10 @@ M.config = {
   auto_reload_files = true,   -- Automatically reload files when they change on disk
 }
 
+function M.get_config()
+  return M.config
+end
+
 -- File auto-reload functionality for server variant
 local function get_file_mtime(filepath)
   local stat = vim.loop.fs_stat(filepath)
@@ -582,6 +586,9 @@ end
 function M.setup(opts)
   opts = opts or {}
   M.config = vim.tbl_extend('force', M.config, opts)
+
+  -- Store config globally for other modules
+  _G._mcp_diagnostics_server_config = M.config
 
   -- Create commands
   create_commands()
