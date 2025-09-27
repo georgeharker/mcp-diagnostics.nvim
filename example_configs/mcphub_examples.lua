@@ -48,7 +48,7 @@ full_auto_approve_setup = function()
       enable_diagnostics = true,
       enable_lsp = true,
       enable_prompts = true,
-      server_name = "mcp-diagnostics-auto", 
+      server_name = "mcp-diagnostics-auto",
       displayName = "Neovim Diagnostics (Auto-Approve)"
     }
   })
@@ -76,13 +76,13 @@ end,
 
     -- Development setup with debugging
     dev = function()
-      local mcphub_module = require("mcp-diagnostics.mcphub.init")
+      local mcphub_module = require("mcp-diagnostics.mcphub")
       mcphub_module.dev_setup()
     end,
 
     -- Minimal setup (diagnostics only)
     minimal = function()
-      local mcphub_module = require("mcp-diagnostics.mcphub.init")
+      local mcphub_module = require("mcp-diagnostics.mcphub")
       mcphub_module.minimal_setup()
     end,
   },
@@ -143,7 +143,7 @@ end,
     })
 
     -- Second server for test diagnostics
-    local mcphub_module = require("mcp-diagnostics.mcphub.init")
+    local mcphub_module = require("mcp-diagnostics.mcphub")
     mcphub_module.setup({
       server_name = "test-diagnostics",
       displayName = "Test Suite Diagnostics",

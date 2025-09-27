@@ -1,20 +1,17 @@
--- MCP Tools registration for mcphub.nvim integration
 
 local M = {}
+local diagnostics = require("mcp-diagnostics.shared.diagnostics")
+local lsp = require("mcp-diagnostics.shared.lsp")
+local buffers = require("mcp-diagnostics.shared.buffers")
+local extra = require("mcp-diagnostics.mcphub.tools_extra")
 
-function M.register_all(mcphub, server_name, core, server_config)
+function M.register_all(mcphub, server_name, server_config)
   server_config = server_config or {}
-  -- Diagnostic tools
-  M.register_diagnostic_tools(mcphub, server_name, core, server_config)
-
-  -- LSP tools
-  M.register_lsp_tools(mcphub, server_name, core, server_config)
-
-  -- Buffer management tools
-  M.register_buffer_tools(mcphub, server_name, core, server_config)
+  -- Use extra tools with stronger prompting
+  extra.register_all(mcphub, server_name, server_config)
 end
 
-function M.register_diagnostic_tools(mcphub, server_name, core, server_config)
+function M.register_diagnostic_tools(mcphub, server_name, server_config)
   server_config = server_config or {}
 
   -- diagnostics_get tool
@@ -45,8 +42,8 @@ function M.register_diagnostic_tools(mcphub, server_name, core, server_config)
       local severity = _req.params.severity
       local source = _req.params.source
 
-      local diagnostics = core.get_all_diagnostics(files, severity, source)
-      return res:text(vim.json.encode(diagnostics), "application/json"):send()
+      local diag_results = diagnostics.get_all_diagnostics(files, severity, source)
+      return res:text(vim.json.encode(diag_results), "application/json"):send()
     end
   })
 
@@ -55,13 +52,13 @@ function M.register_diagnostic_tools(mcphub, server_name, core, server_config)
     name = "diagnostics_summary",
     description = "Get diagnostic summary with counts by severity and file",
     handler = function(_req, res)
-      local summary = core.get_diagnostic_summary()
+      local summary = diagnostics.get_diagnostic_summary()
       return res:text(vim.json.encode(summary), "application/json"):send()
     end
   })
 end
 
-function M.register_lsp_tools(mcphub, server_name, core, server_config)
+function M.register_lsp_tools(mcphub, server_name, server_config)
   server_config = server_config or {}
 
   -- LSP hover tool
@@ -78,7 +75,7 @@ function M.register_lsp_tools(mcphub, server_name, core, server_config)
       required = { "file", "line", "column" }
     },
     handler = function(_req, res)
-      local hover_info = core.get_hover_info(_req.params.file, _req.params.line, _req.params.column)
+      local hover_info = lsp.get_hover_info(_req.params.file, _req.params.line, _req.params.column)
       return res:text(vim.json.encode(hover_info), "application/json"):send()
     end
   })
@@ -97,7 +94,7 @@ function M.register_lsp_tools(mcphub, server_name, core, server_config)
       required = { "file", "line", "column" }
     },
     handler = function(_req, res)
-      local definitions = core.get_definitions(_req.params.file, _req.params.line, _req.params.column)
+      local definitions = lsp.get_definitions(_req.params.file, _req.params.line, _req.params.column)
       return res:text(vim.json.encode(definitions), "application/json"):send()
     end
   })
@@ -116,7 +113,7 @@ function M.register_lsp_tools(mcphub, server_name, core, server_config)
       required = { "file", "line", "column" }
     },
     handler = function(_req, res)
-      local references = core.get_references(_req.params.file, _req.params.line, _req.params.column)
+      local references = lsp.get_references(_req.params.file, _req.params.line, _req.params.column)
       return res:text(vim.json.encode(references), "application/json"):send()
     end
   })
@@ -133,7 +130,7 @@ function M.register_lsp_tools(mcphub, server_name, core, server_config)
       required = { "file" }
     },
     handler = function(_req, res)
-      local symbols = core.get_document_symbols(_req.params.file)
+      local symbols = lsp.get_document_symbols(_req.params.file)
       return res:text(vim.json.encode(symbols), "application/json"):send()
     end
   })
@@ -149,7 +146,7 @@ function M.register_lsp_tools(mcphub, server_name, core, server_config)
       }
     },
     handler = function(_req, res)
-      local symbols = core.get_workspace_symbols(_req.params.query)
+      local symbols = lsp.get_workspace_symbols(_req.params.query)
       return res:text(vim.json.encode(symbols), "application/json"):send()
     end
   })
@@ -170,13 +167,13 @@ function M.register_lsp_tools(mcphub, server_name, core, server_config)
       required = { "file", "line", "column" }
     },
     handler = function(_req, res)
-      local actions = core.get_code_actions(_req.params.file, _req.params.line, _req.params.column, _req.params.end_line, _req.params.end_column)
+      local actions = lsp.get_code_actions(_req.params.file, _req.params.line, _req.params.column, _req.params.end_line, _req.params.end_column)
       return res:text(vim.json.encode(actions), "application/json"):send()
     end
   })
 end
 
-function M.register_buffer_tools(mcphub, server_name, core, server_config)
+function M.register_buffer_tools(mcphub, server_name, server_config)
   server_config = server_config or {}
 
   -- buffer_status tool
@@ -184,7 +181,7 @@ function M.register_buffer_tools(mcphub, server_name, core, server_config)
     name = "buffer_status",
     description = "Get status of all loaded buffers",
     handler = function(_req, res)
-      local status = core.get_buffer_status()
+      local status = buffers.get_buffer_status()
       return res:text(vim.json.encode(status), "application/json"):send()
     end
   })

@@ -44,12 +44,12 @@ function M.setup_mcphub(opts)
     return false
   end
 
-  local mcphub_integration = require("mcp-diagnostics.mcphub.init")
+  local mcphub_integration = require("mcp-diagnostics.mcphub")
   return mcphub_integration.setup(opts)
 end
 
 function M.setup_server(opts)
-  local server_integration = require("mcp-diagnostics.server.init")  --diagnostics:ignore:same-file
+  local server_integration = require("mcp-diagnostics.server")
   return server_integration.setup(opts)
 end
 
@@ -64,11 +64,11 @@ function M.server()
 end
 
 M.mcphub_module = function()
-  return require("mcp-diagnostics.mcphub.init")
+  return require("mcp-diagnostics.mcphub")
 end
 
 M.server_module = function()
-  return require("mcp-diagnostics.server.init")
+  return require("mcp-diagnostics.server")
 end
 
 return M

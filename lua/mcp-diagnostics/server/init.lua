@@ -1,11 +1,14 @@
+
 -- External Node.js MCP Server Integration for MCP Diagnostics
 -- Provides setup and management for Node.js MCP server communication
 
 local M = {}
+local config = require("mcp-diagnostics.shared.config")
+local diagnostics = require("mcp-diagnostics.shared.diagnostics")
+local buffers = require("mcp-diagnostics.shared.buffers")
+local file_watcher = require("mcp-diagnostics.shared.file_watcher")
 
--- File watching state for auto-reloading (server variant)
-local server_file_watchers = {}
-local server_buffer_file_times = {}
+-- Note: File watching is now handled by shared components
 
 M.config = {
   server_address = '/tmp/nvim.sock',  -- Can be socket path or TCP address
@@ -30,142 +33,18 @@ function M.get_config()
   return M.config
 end
 
--- File auto-reload functionality for server variant
-local function get_file_mtime(filepath)
-  local stat = vim.loop.fs_stat(filepath)
-  return stat and stat.mtime.sec or 0
-end
 
-local function setup_server_file_watcher(filepath, bufnr)
-  if server_file_watchers[filepath] then
-    return -- Already watching this file
-  end
-
-  print("[MCP Diagnostics Server] Setting up file watcher for: " .. filepath)
-
-  -- Store initial modification time
-  server_buffer_file_times[filepath] = get_file_mtime(filepath)
-
-  -- Create file watcher using vim.loop (libuv)
-  local watcher = vim.loop.new_fs_event()
-  if not watcher then
-    print("[MCP Diagnostics Server] Failed to create file watcher for: " .. filepath)
-    return
-  end
-
-  server_file_watchers[filepath] = watcher
-
-  local function on_file_change(err, _filename, _events)
-    if err then
-      print("[MCP Diagnostics Server] File watcher error for " .. filepath .. ": " .. err)
-      return
-    end
-
-    -- Check if file actually changed (avoid duplicate events)
-    local current_mtime = get_file_mtime(filepath)
-    local last_mtime = server_buffer_file_times[filepath] or 0
-
-    if current_mtime > last_mtime then
-      server_buffer_file_times[filepath] = current_mtime
-      print("[MCP Diagnostics Server] File changed, reloading buffer: " .. filepath)
-
-      vim.schedule(function()
-        -- Check if buffer is still valid and loaded
-        if vim.api.nvim_buf_is_valid(bufnr) and vim.api.nvim_buf_is_loaded(bufnr) then
-          -- Reload the buffer content
-          local ok, err_msg = pcall(function()
-            vim.api.nvim_buf_call(bufnr, function()
-              vim.cmd('edit!')
-            end)
-          end)
-
-          if ok then
-            print("[MCP Diagnostics Server] Successfully reloaded buffer: " .. filepath)
-            vim.notify("Auto-reloaded: " .. vim.fn.fnamemodify(filepath, ":t"), vim.log.levels.INFO)
-          else
-            print("[MCP Diagnostics Server] Failed to reload buffer " .. filepath .. ": " .. tostring(err_msg))
-          end
-        else
-          -- Buffer is no longer valid, clean up watcher
-          M.cleanup_server_file_watcher(filepath)
-        end
-      end)
-    end
-  end
-
-  -- Start watching the file
-  local ok, watch_err = pcall(function()
-    watcher:start(filepath, {}, on_file_change)
-  end)
-
-  if not ok then
-    print("[MCP Diagnostics Server] Failed to start file watcher for " .. filepath .. ": " .. tostring(watch_err))
-    server_file_watchers[filepath] = nil
-    watcher:close()
-  else
-    print("[MCP Diagnostics Server] File watcher started for: " .. filepath)
-  end
-end
 
 function M.cleanup_server_file_watcher(filepath)
-  local watcher = server_file_watchers[filepath]
-  if watcher then
-    watcher:stop()
-    watcher:close()
-    server_file_watchers[filepath] = nil
-    server_buffer_file_times[filepath] = nil
-    print("[MCP Diagnostics Server] Cleaned up file watcher for: " .. filepath)
-  end
+  file_watcher.cleanup_watcher(filepath)
 end
 
 function M.cleanup_all_server_watchers()
-  for _filepath, watcher in pairs(server_file_watchers) do
-    watcher:stop()
-    watcher:close()
-  end
-  server_file_watchers = {}
-  server_buffer_file_times = {}
-  print("[MCP Diagnostics Server] Cleaned up all file watchers")
+  file_watcher.cleanup_all_watchers()
 end
 
--- Enhanced buffer loading with auto-reload support
 function M.ensure_buffer_loaded_with_reload(filepath, enable_auto_reload)
-  print("[MCP Diagnostics Server] Ensuring buffer loaded: " .. filepath)
-
-  -- Default to auto-reload enabled unless explicitly disabled
-  if enable_auto_reload == nil then
-    enable_auto_reload = M.config.auto_reload_files ~= false
-  end
-
-  local bufnr = vim.fn.bufnr(filepath)
-  if bufnr == -1 then
-    -- Buffer doesn't exist, create it
-    bufnr = vim.fn.bufnr(filepath, true)
-  end
-
-  if not vim.api.nvim_buf_is_loaded(bufnr) then
-    -- Load the buffer
-    vim.fn.bufload(bufnr)
-  end
-
-  -- Set up auto-reload watcher if enabled and file exists
-  if enable_auto_reload and vim.fn.filereadable(filepath) == 1 then
-    setup_server_file_watcher(filepath, bufnr)
-
-    -- Set up buffer cleanup when buffer is deleted
-    vim.api.nvim_create_autocmd("BufDelete", {
-      buffer = bufnr,
-      callback = function()
-        M.cleanup_server_file_watcher(filepath)
-      end,
-      once = true
-    })
-  end
-
-  local loaded = vim.api.nvim_buf_is_loaded(bufnr)
-  print("[MCP Diagnostics Server] Buffer " .. filepath .. " loaded: " .. tostring(loaded) ..
-        ", auto-reload: " .. tostring(enable_auto_reload))
-  return bufnr, loaded
+  return buffers.ensure_buffer_loaded(filepath, enable_auto_reload)
 end
 
 -- Start server (socket or TCP based on address format)
@@ -235,68 +114,26 @@ function M.stop_all()
   end
 end
 
--- Get diagnostic summary
 function M.diagnostic_summary()
-  local diagnostics = vim.diagnostic.get()
-  local summary = { error = 0, warn = 0, info = 0, hint = 0 }
-
-  for _, diag in ipairs(diagnostics) do
-    if diag.severity == vim.diagnostic.severity.ERROR then
-      summary.error = summary.error + 1
-    elseif diag.severity == vim.diagnostic.severity.WARN then
-      summary.warn = summary.warn + 1
-    elseif diag.severity == vim.diagnostic.severity.INFO then
-      summary.info = summary.info + 1
-    elseif diag.severity == vim.diagnostic.severity.HINT then
-      summary.hint = summary.hint + 1
-    end
-  end
-
-  vim.notify(string.format('[MCP Diagnostics] %d errors, %d warnings, %d info, %d hints',
-    summary.error, summary.warn, summary.info, summary.hint), vim.log.levels.INFO)
-
+  local summary = diagnostics.get_diagnostic_summary()
+  config.log_info(string.format('%d errors, %d warnings, %d info, %d hints',
+    summary.errors, summary.warnings, summary.info, summary.hints), "[MCP Diagnostics Server]")
   return summary
 end
 
 function M.export_diagnostics(filename)
   filename = filename or M.config.export_path
-  local diagnostics = vim.diagnostic.get()
-  local data = {}
-
-  for _, diag in ipairs(diagnostics) do
-    local bufnr = diag.bufnr
-    local filepath = bufnr and vim.api.nvim_buf_get_name(bufnr) or ''
-    local lnum = diag.lnum and tonumber(diag.lnum) or 0
-    local col = diag.col and tonumber(diag.col) or 0
-
-    -- Auto-reload file if configured
-    if M.config.auto_reload_files and filepath ~= '' then
-      M.ensure_buffer_loaded_with_reload(filepath, true)
-    end
-
-    table.insert(data, {
-      bufnr = bufnr,
-      filename = filepath,
-      lnum = lnum,
-      col = col,
-      end_lnum = diag.end_lnum and tonumber(diag.end_lnum) or lnum,
-      end_col = diag.end_col and tonumber(diag.end_col) or col,
-      severity = diag.severity,
-      message = diag.message,
-      source = diag.source or '',
-      code = diag.code or ''
-    })
-  end
+  local data = diagnostics.get_all_diagnostics()
 
   local json = vim.json.encode(data)
   local file = io.open(filename, 'w')
   if file then
     file:write(json)
     file:close()
-    vim.notify('[MCP Diagnostics] Exported diagnostics to ' .. filename, vim.log.levels.INFO)
+    config.log_info('Exported diagnostics to ' .. filename, "[MCP Diagnostics Server]")
     return true
   else
-    vim.notify('[MCP Diagnostics] Failed to export diagnostics to ' .. filename, vim.log.levels.ERROR)
+    config.log_error('Failed to export diagnostics to ' .. filename, "[MCP Diagnostics Server]")
     return false
   end
 end

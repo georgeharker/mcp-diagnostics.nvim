@@ -136,6 +136,7 @@ require("mcp-diagnostics").setup({
     debug = false,           -- Show detailed logs
     lsp_timeout = 1000,      -- LSP operation timeout (ms)
     auto_register = true,    -- Auto-register with mcphub
+    auto_reload_files = true, -- Automatically reload changed files
   }
 })
 ```
@@ -157,6 +158,71 @@ require("mcp-diagnostics").setup({
   mcphub = { auto_approve = true }
 })
 ```
+
+### Migration from Older Versions
+
+If you're upgrading from an older version of this plugin, the configuration format has been unified:
+
+**Old format:**
+```lua
+-- Old mixed configuration (no longer supported)
+require("mcp-diagnostics.config").setup({
+  server_address = '/tmp/nvim.sock',
+  auto_start_server = true
+})
+
+-- Or old mcphub setup
+require("mcp-diagnostics.mcphub").quick_setup()
+```
+
+**New unified format:**
+```lua
+-- New unified configuration
+require("mcp-diagnostics").setup({
+  mode = "mcphub",  -- Choose: "mcphub" or "server"
+  mcphub = {
+    auto_register = true,
+    auto_approve = false,  -- Optional: enable for seamless AI interaction
+  }
+})
+
+-- Or for server mode:
+require("mcp-diagnostics").setup({
+  mode = "server",
+  server = {
+    server_address = '/tmp/nvim.sock',
+    auto_start_server = true
+  }
+})
+```
+
+**Path changes for external server:**
+- Old: `/path/to/mcp-diagnostics/dist/index.js`
+- New: `/path/to/mcp-diagnostics/server/mcp-diagnostics/dist/index.js`
+
+### 🔄 Auto-Reload Feature
+
+This plugin automatically watches for file changes and reloads them in Neovim when they're modified externally. This ensures AI assistants always work with the latest file content.
+
+**Configuration:**
+```lua
+require("mcp-diagnostics").setup({
+  mode = "mcphub",
+  mcphub = {
+    auto_reload_files = true,  -- Default: enabled
+  }
+})
+
+-- To disable auto-reload:
+require("mcp-diagnostics").no_auto_reload()
+```
+
+**What it does:**
+- Monitors files opened in buffers for external changes
+- Automatically reloads buffers when files change on disk  
+- Prevents stale data when working with AI assistants
+- Smart change detection to avoid unnecessary reloads
+- Automatic cleanup when files are closed
 
 ## 🤖 Auto-Approve Feature
 
@@ -439,7 +505,6 @@ require("mcp-diagnostics").setup({
   - [`mcphub_examples.lua`](example_configs/mcphub_examples.lua) - mcphub.nvim integration examples
   - [`server_examples.lua`](example_configs/server_examples.lua) - External server examples
   - [`claude_desktop_config_example.json`](example_configs/claude_desktop_config_example.json) - Claude Desktop configs
-- 🔄 **Migration Guide**: [`MIGRATION.md`](MIGRATION.md) - Upgrading from older versions
 
 ## 🎯 Recommended AI Assistant Prompts
 

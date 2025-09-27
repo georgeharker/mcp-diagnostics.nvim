@@ -1,8 +1,8 @@
--- MCP Resources registration for mcphub.nvim integration
 
 local M = {}
+local diagnostics = require("mcp-diagnostics.shared.diagnostics")
 
-function M.register_all(mcphub, server_name, core, server_config)
+function M.register_all(mcphub, server_name, server_config)
   server_config = server_config or {}
 
   -- Current diagnostics resource
@@ -11,8 +11,8 @@ function M.register_all(mcphub, server_name, core, server_config)
     uri = "diagnostics://current",
     description = "All current diagnostics from Neovim buffers",
     handler = function(_req, res)
-      local diagnostics = core.get_all_diagnostics()
-      return res:text(vim.json.encode(diagnostics), "application/json"):send()
+      local diag_results = diagnostics.get_all_diagnostics()
+      return res:text(vim.json.encode(diag_results), "application/json"):send()
     end
   })
 
@@ -22,7 +22,7 @@ function M.register_all(mcphub, server_name, core, server_config)
     uri = "diagnostics://summary",
     description = "Summary of diagnostic counts by severity",
     handler = function(_req, res)
-      local summary = core.get_diagnostic_summary()
+      local summary = diagnostics.get_diagnostic_summary()
       return res:text(vim.json.encode(summary), "application/json"):send()
     end
   })
@@ -33,7 +33,7 @@ function M.register_all(mcphub, server_name, core, server_config)
     uri = "diagnostics://errors",
     description = "All error-level diagnostics",
     handler = function(_req, res)
-      local errors = core.get_all_diagnostics(nil, "error")
+      local errors = diagnostics.get_all_diagnostics(nil, "error")
       return res:text(vim.json.encode(errors), "application/json"):send()
     end
   })
@@ -44,7 +44,7 @@ function M.register_all(mcphub, server_name, core, server_config)
     uri = "diagnostics://warnings",
     description = "All warning-level diagnostics",
     handler = function(_req, res)
-      local warnings = core.get_all_diagnostics(nil, "warn")
+      local warnings = diagnostics.get_all_diagnostics(nil, "warn")
       return res:text(vim.json.encode(warnings), "application/json"):send()
     end
   })

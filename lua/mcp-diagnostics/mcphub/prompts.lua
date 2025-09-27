@@ -1,18 +1,18 @@
--- MCP Prompts registration for mcphub.nvim integration
 
 local M = {}
+local investigation = require("mcp-diagnostics.shared.prompts.investigation")
+local extra = require("mcp-diagnostics.shared.prompts.investigation_extra")
 
-function M.register_all(mcphub, server_name, core, server_config)
+function M.register_all(mcphub, server_name, server_config)
   server_config = server_config or {}
 
   -- Diagnostic investigation guide
   mcphub.add_prompt(server_name, {
     name = "diagnostic_investigation_guide",
-    description = "Guide for systematic diagnostic investigation and error fixing",
+    description = "🚨 CRITICAL: Comprehensive guide for ELIMINATING ALL diagnostics using systematic LSP investigation. Zero-defect approach with mandatory tool usage patterns.",
     handler = function(_req, res)
-      local summary = core.get_diagnostic_summary()
-      local guide = M.create_investigation_guide(summary)
-      return res:user():text("I need help investigating diagnostics in my Neovim session")
+      local guide = extra.create_investigation_prompt(nil, nil)
+      return res:user():text("🚨 I need help systematically ELIMINATING ALL diagnostics in my Neovim session using comprehensive LSP investigation")
                 :llm():text(guide):send()
     end
   })
@@ -20,11 +20,10 @@ function M.register_all(mcphub, server_name, core, server_config)
   -- Error triage prompt
   mcphub.add_prompt(server_name, {
     name = "error_triage",
-    description = "Prioritized list of errors to fix first",
+    description = "🔥 EMERGENCY: Critical error elimination strategy with zero tolerance for remaining issues. Mandatory LSP investigation protocols.",
     handler = function(_req, res)
-      local errors = core.get_all_diagnostics(nil, "error")
-      local triage = M.create_error_triage(errors)
-      return res:user():text("Help me prioritize which errors to fix first")
+      local triage = extra.create_triage_prompt()
+      return res:user():text("🔥 EMERGENCY: Help me systematically eliminate ALL errors with comprehensive LSP investigation approach")
                 :llm():text(triage):send()
     end
   })
@@ -32,10 +31,10 @@ function M.register_all(mcphub, server_name, core, server_config)
   -- LSP workflow guide
   mcphub.add_prompt(server_name, {
     name = "lsp_workflow_guide",
-    description = "Guide for effective LSP usage workflow",
+    description = "🎯 MASTER LSP TOOLKIT: Comprehensive workflow guide for systematic code exploration and understanding. Mandatory usage patterns for investigation success.",
     handler = function(_req, res)
-      local workflow = M.create_lsp_workflow_guide()
-      return res:user():text("Show me how to use LSP features effectively")
+      local workflow = extra.create_lsp_workflow_prompt()
+      return res:user():text("🎯 Show me the MASTER LSP workflow for systematic code exploration and comprehensive diagnostic resolution")
                 :llm():text(workflow):send()
     end
   })
