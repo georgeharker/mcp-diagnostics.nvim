@@ -46,7 +46,8 @@ return {
 
   -- Direct server module usage (advanced)
   direct_usage = function()
-    local server = require("mcp-diagnostics.server.init")
+    local server_module = require("mcp-diagnostics.server")
+    local server = server_module
 
     server.setup({
       server_address = '/tmp/nvim.sock',
@@ -150,7 +151,8 @@ return {
     vim.api.nvim_create_autocmd({"BufWritePost"}, {
       pattern = "*/mcp-diagnostics/server/mcp-diagnostics/src/*.ts",
       callback = function()
-        local server = require("mcp-diagnostics.server.init")
+        local server_module = require("mcp-diagnostics.server")
+        local server = server_module
         vim.notify("TypeScript file changed, rebuilding...", vim.log.levels.INFO)
         server.build_node_server()
       end
@@ -182,7 +184,8 @@ return {
     vim.api.nvim_create_autocmd({"DiagnosticChanged"}, {
       callback = function()
         vim.defer_fn(function()
-          local server = require("mcp-diagnostics.server.init")
+          local server_module = require("mcp-diagnostics.server")
+          local server = server_module
           server.export_diagnostics()
         end, 500)
       end

@@ -499,43 +499,14 @@ export class NeovimDiagnosticsManager {
     
     try {
       const result = await nvim.lua(`
-        local filepath = "${file}"
-        local line = ${line}
-        local col = ${col}
+        local lsp = require("mcp-diagnostics.shared.lsp")
+        local hover_info, err = lsp.get_hover_info("${file}", ${line}, ${col})
         
-        local bufnr = vim.fn.bufnr(filepath, true)
-        if bufnr == -1 then
-          return { error = "File not found: " .. filepath }
+        if err then
+          return { error = err }
         end
         
-        vim.fn.bufload(bufnr)
-        vim.api.nvim_set_current_buf(bufnr)
-        vim.api.nvim_win_set_cursor(0, {line + 1, col})
-        
-        local clients = vim.lsp.get_active_clients({bufnr = bufnr})
-        if #clients == 0 then
-          return { error = "No LSP client attached to buffer" }
-        end
-        
-        local params = vim.lsp.util.make_position_params()
-        local results = {}
-        
-        for _, client in ipairs(clients) do
-          if client.server_capabilities.hoverProvider then
-            local success, result = pcall(function()
-              return client.request_sync('textDocument/hover', params, 5000, bufnr)
-            end)
-            
-            if success and result and result.result then
-              table.insert(results, {
-                client = client.name,
-                hover = result.result
-              })
-            end
-          end
-        end
-        
-        return results
+        return hover_info or {}
       `);
       
       return result;
@@ -554,49 +525,23 @@ export class NeovimDiagnosticsManager {
     
     try {
       const result = await nvim.lua(`
-        local filepath = "${file}"
-        local line = ${line}
-        local col = ${col}
+        local lsp = require("mcp-diagnostics.shared.lsp")
+        local definitions, err = lsp.get_definitions("${file}", ${line}, ${col})
         
-        local bufnr = vim.fn.bufnr(filepath, true)
-        if bufnr == -1 then
-          return { error = "File not found: " .. filepath }
+        if err then
+          return { error = err }
         end
         
-        vim.fn.bufload(bufnr)
-        vim.api.nvim_set_current_buf(bufnr)
-        vim.api.nvim_win_set_cursor(0, {line + 1, col})
-        
-        local clients = vim.lsp.get_active_clients({bufnr = bufnr})
-        if #clients == 0 then
-          return { error = "No LSP client attached to buffer" }
-        end
-        
-        local params = vim.lsp.util.make_position_params()
+        -- Convert to expected format
         local results = {}
-        
-        for _, client in ipairs(clients) do
-          if client.server_capabilities.definitionProvider then
-            local success, result = pcall(function()
-              return client.request_sync('textDocument/definition', params, 5000, bufnr)
-            end)
-            
-            if success and result and result.result then
-              for _, location in ipairs(result.result) do
-                local uri = location.uri
-                local filename = vim.uri_to_fname(uri)
-                local range = location.range
-                
-                table.insert(results, {
-                  filename = filename,
-                  lnum = range.start.line,
-                  col = range.start.character,
-                  text = string.format("Definition at %s:%d:%d", 
-                    filename, range.start.line + 1, range.start.character + 1)
-                })
-              end
-            end
-          end
+        for _, def in ipairs(definitions or {}) do
+          table.insert(results, {
+            filename = def.file,
+            lnum = def.range.start.line,
+            col = def.range.start.character,
+            text = string.format("Definition at %s:%d:%d", 
+              def.file, def.range.start.line + 1, def.range.start.character + 1)
+          })
         end
         
         return results
@@ -618,50 +563,23 @@ export class NeovimDiagnosticsManager {
     
     try {
       const result = await nvim.lua(`
-        local filepath = "${file}"
-        local line = ${line}
-        local col = ${col}
+        local lsp = require("mcp-diagnostics.shared.lsp")
+        local references, err = lsp.get_references("${file}", ${line}, ${col})
         
-        local bufnr = vim.fn.bufnr(filepath, true)
-        if bufnr == -1 then
-          return { error = "File not found: " .. filepath }
+        if err then
+          return { error = err }
         end
         
-        vim.fn.bufload(bufnr)
-        vim.api.nvim_set_current_buf(bufnr)
-        vim.api.nvim_win_set_cursor(0, {line + 1, col})
-        
-        local clients = vim.lsp.get_active_clients({bufnr = bufnr})
-        if #clients == 0 then
-          return { error = "No LSP client attached to buffer" }
-        end
-        
-        local params = vim.lsp.util.make_position_params()
-        params.context = { includeDeclaration = true }
+        -- Convert to expected format
         local results = {}
-        
-        for _, client in ipairs(clients) do
-          if client.server_capabilities.referencesProvider then
-            local success, result = pcall(function()
-              return client.request_sync('textDocument/references', params, 5000, bufnr)
-            end)
-            
-            if success and result and result.result then
-              for _, location in ipairs(result.result) do
-                local uri = location.uri
-                local filename = vim.uri_to_fname(uri)
-                local range = location.range
-                
-                table.insert(results, {
-                  filename = filename,
-                  lnum = range.start.line,
-                  col = range.start.character,
-                  text = string.format("Reference at %s:%d:%d", 
-                    filename, range.start.line + 1, range.start.character + 1)
-                })
-              end
-            end
-          end
+        for _, ref in ipairs(references or {}) do
+          table.insert(results, {
+            filename = ref.file,
+            lnum = ref.range.start.line,
+            col = ref.range.start.character,
+            text = string.format("Reference at %s:%d:%d", 
+              ref.file, ref.range.start.line + 1, ref.range.start.character + 1)
+          })
         end
         
         return results

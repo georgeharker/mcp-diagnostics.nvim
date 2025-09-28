@@ -44,13 +44,11 @@ function M.setup_mcphub(opts)
     return false
   end
 
-  local mcphub_integration = require("mcp-diagnostics.mcphub")
-  return mcphub_integration.setup(opts)
+  return M.mcphub_module().setup(opts)
 end
 
 function M.setup_server(opts)
-  local server_integration = require("mcp-diagnostics.server")
-  return server_integration.setup(opts)
+  return M.server_module().setup(opts)
 end
 
 --- Quick setup for mcphub.nvim users
