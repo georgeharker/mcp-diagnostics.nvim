@@ -1,0 +1,5 @@
+# Requirements for the dotfile manager application
+textual>=0.45.0
+rich>=13.0.0
+pyyaml>=6.0
+toml>=0.10.2
