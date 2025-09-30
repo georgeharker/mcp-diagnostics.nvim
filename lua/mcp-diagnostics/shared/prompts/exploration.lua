@@ -33,22 +33,53 @@ Document symbols found:
 
 Please guide me through systematic exploration using LSP tools:
 
+### For Symbol Discovery (Start Here!):
+1. **NEW**: Use `symbol_lookup` to find symbols by name across the entire workspace
+2. **ENHANCED**: Use `lsp_hover` with symbol names for quick symbol information
+3. Use `analyze_symbol` for comprehensive symbol analysis (combines hover + definition + references)
+
 ### For Understanding Structure:
-1. Use `lsp_symbols` to see all symbols in key files
-2. Use `lsp_definition` on important symbols to understand their implementations
-3. Use `lsp_references` to see how components connect
-4. Use `lsp_workspace_symbols` to find related symbols across the project
+1. Use `lsp_document_symbols` to see all symbols in key files
+2. Use `symbol_lookup` to find specific classes, functions, or variables by name
+3. Use `lsp_definition` on important symbols to understand their implementations
+4. Use `lsp_references` to see how components connect
+5. Use `lsp_workspace_symbols` to find related symbols across the project
+6. Use `analyze_symbol` for deep analysis of critical symbols
 
 ### For Tracing Execution:
 1. Start with entry functions using `lsp_hover` for signatures
+2. Use `symbol_lookup` to find functions by name if you don't know their location
 2. Use `lsp_definition` to follow function calls
 3. Use `lsp_references` to see all call sites
+4. Use `analyze_symbol` on key functions to get comprehensive analysis
 4. Map out the execution flow step by step
 
 ### For Finding Usage:
 1. Use `lsp_references` on symbols to see all usage locations
-2. Use `lsp_workspace_symbols` to find similar or related symbols
+2. Use `symbol_lookup` with partial names to find related symbols
+3. Use `lsp_workspace_symbols` to search by pattern
 3. Analyze usage patterns and contexts
+
+### 🚀 **POWER TOOL EXAMPLES** (Use These Patterns!)
+   ```
+   # Quick symbol discovery (replaces multiple workspace searches):
+   symbol_lookup({"symbol_name": "Config", "context_file": "settings"})
+   
+   # Enhanced hover with symbol names (no position needed!):
+   lsp_hover({"symbol_name": "UserModel", "context_file": "models"})
+   
+   # Complete symbol analysis in one call:
+   analyze_symbol({"file": "models/user.lua", "line": 15, "column": 7})
+   
+   # Find all symbols matching pattern:
+   lsp_workspace_symbols({"query": "validate"})
+   ```
+
+### 💡 **WHY THESE TOOLS REVOLUTIONIZE CODE EXPLORATION:**
+   - **symbol_lookup**: "Find the UserModel class" vs. hunting through files
+   - **analyze_symbol**: Get hover + definition + references + usage in ONE call  
+   - **Enhanced lsp_hover**: Works with names OR positions - maximum flexibility
+   - **Speed**: 3-5x faster exploration with fewer tool calls
 
 ### For Dependency Analysis:
 1. Use `lsp_definition` on imports/includes to understand dependencies

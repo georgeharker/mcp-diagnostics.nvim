@@ -3,6 +3,17 @@
 -- Assumes buffers are already loaded by lsp_interact.lua
 
 local config = require("mcp-diagnostics.shared.config")
+
+-- LSP Methods from protocol - following codecompanion's clean approach
+local LSP_METHODS = {
+    hover = vim.lsp.protocol.Methods.textDocument_hover,
+    definition = vim.lsp.protocol.Methods.textDocument_definition,
+    references = vim.lsp.protocol.Methods.textDocument_references,
+    document_symbols = vim.lsp.protocol.Methods.textDocument_documentSymbol,
+    workspace_symbols = vim.lsp.protocol.Methods.workspace_symbol,
+    code_actions = vim.lsp.protocol.Methods.textDocument_codeAction,
+}
+
 local M = {}
 
 -- Helper to get client name from client_id
@@ -25,7 +36,7 @@ function M.get_hover_info(bufnr, line, column)
     config.log_debug(string.format("Getting hover info for buffer %d:%d:%d", bufnr, line, column), "[LSP Inquiry]")
 
     local params = vim.lsp.util.make_position_params()
-    local lsp_response = vim.lsp.buf_request_sync(bufnr, "textDocument/hover", params)
+    local lsp_response = vim.lsp.buf_request_sync(bufnr, LSP_METHODS.hover, params)
 
     local hover_info = {}
     for client_id, response in pairs(lsp_response or {}) do
@@ -67,7 +78,7 @@ function M.get_definitions(bufnr, line, column)
     config.log_debug(string.format("Getting definitions for buffer %d:%d:%d", bufnr, line, column), "[LSP Inquiry]")
 
     local params = vim.lsp.util.make_position_params()
-    local lsp_response = vim.lsp.buf_request_sync(bufnr, "textDocument/definition", params)
+    local lsp_response = vim.lsp.buf_request_sync(bufnr, LSP_METHODS.definition, params)
 
     local definitions = {}
     for client_id, response in pairs(lsp_response or {}) do
@@ -95,7 +106,7 @@ function M.get_references(bufnr, line, column)
 
     local params = vim.lsp.util.make_position_params()
     params.context = { includeDeclaration = true }
-    local lsp_response = vim.lsp.buf_request_sync(bufnr, "textDocument/references", params)
+    local lsp_response = vim.lsp.buf_request_sync(bufnr, LSP_METHODS.references, params)
 
     local references = {}
     for client_id, response in pairs(lsp_response or {}) do
@@ -125,7 +136,7 @@ function M.get_document_symbols(bufnr)
     local params = {
         textDocument = { uri = vim.uri_from_fname(file) }
     }
-    local lsp_response = vim.lsp.buf_request_sync(bufnr, "textDocument/documentSymbol", params)
+    local lsp_response = vim.lsp.buf_request_sync(bufnr, LSP_METHODS.document_symbols, params)
 
     local symbols = {}
     for client_id, response in pairs(lsp_response or {}) do
@@ -155,7 +166,7 @@ function M.get_workspace_symbols(query)
 
     local params = { query = query or "" }
     local bufnr = vim.api.nvim_get_current_buf()
-    local lsp_response = vim.lsp.buf_request_sync(bufnr, "workspace/symbol", params)
+    local lsp_response = vim.lsp.buf_request_sync(bufnr, LSP_METHODS.workspace_symbols, params)
 
     local symbols = {}
     for client_id, response in pairs(lsp_response or {}) do
@@ -209,7 +220,7 @@ function M.get_code_actions(bufnr, line, column, end_line, end_column)
         }
     }
 
-    local lsp_response = vim.lsp.buf_request_sync(bufnr, "textDocument/codeAction", params)
+    local lsp_response = vim.lsp.buf_request_sync(bufnr, LSP_METHODS.code_actions, params)
 
     local actions = {}
     for client_id, response in pairs(lsp_response or {}) do

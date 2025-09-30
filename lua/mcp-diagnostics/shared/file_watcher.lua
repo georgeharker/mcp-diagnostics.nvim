@@ -82,21 +82,29 @@ function M.setup_watcher(filepath, bufnr, log_prefix)
           end
 
           if current_reload_mode == "reload" then
-            -- Reload the buffer content
+            -- Use checktime to gracefully reload buffer if file changed
+            local before_changedtick = vim.api.nvim_buf_get_changedtick(bufnr)
             local ok, err_msg = pcall(function()
               vim.api.nvim_buf_call(bufnr, function()
-                vim.cmd('edit!')
+                vim.cmd('checktime')
               end)
             end)
 
             if ok then
-              config.log_debug(string.format("Successfully reloaded buffer: %s", filepath), log_prefix)
-              vim.notify("Auto-reloaded: " .. vim.fn.fnamemodify(filepath, ":t"), vim.log.levels.INFO)
+              local after_changedtick = vim.api.nvim_buf_get_changedtick(bufnr)
+              
+              if after_changedtick ~= before_changedtick then
+                config.log_debug(string.format("File changed, buffer reloaded: %s (tick %d -> %d)", 
+                  filepath, before_changedtick, after_changedtick), log_prefix)
+                vim.notify("Auto-reloaded: " .. vim.fn.fnamemodify(filepath, ":t"), vim.log.levels.INFO)
 
-              -- Notify LSP of file change via lsp_interact
-              local lsp_interact = package.loaded["mcp-diagnostics.shared.lsp_interact"]
-              if lsp_interact then
-                lsp_interact.handle_file_changed(filepath, bufnr)
+                -- Notify LSP of file change via lsp_interact
+                local lsp_interact = package.loaded["mcp-diagnostics.shared.lsp_interact"]
+                if lsp_interact then
+                  lsp_interact.handle_file_changed(filepath, bufnr)
+                end
+              else
+                config.log_debug(string.format("File timestamp changed but content unchanged: %s", filepath), log_prefix)
               end
             else
               config.log_debug(string.format("Failed to reload buffer %s: %s", filepath, tostring(err_msg)), log_prefix)

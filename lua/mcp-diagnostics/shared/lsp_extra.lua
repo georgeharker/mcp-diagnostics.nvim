@@ -3,7 +3,6 @@
 local lsp_inquiry = require("mcp-diagnostics.shared.lsp_inquiry")
 local lsp_interact = require("mcp-diagnostics.shared.lsp_interact")
 local file_watcher = require("mcp-diagnostics.shared.file_watcher")
-local unified_refresh = require("mcp-diagnostics.shared.unified_refresh")
 local M = {}
 
 function M.ensure_files_loaded(filepaths, options)
@@ -31,7 +30,7 @@ function M.handle_file_deleted(filepath)
   return lsp_interact.handle_file_deleted(filepath)
 end
 
-function M.analyze_symbol_comprehensive(filepath, line, column)
+function M.analyze_symbol(filepath, line, column)
   local bufnr, loaded, err = M.ensure_file_loaded(filepath)
   if not loaded then
     return { error = err or ("Could not load file: " .. filepath) }
@@ -56,7 +55,7 @@ function M.analyze_symbol_comprehensive(filepath, line, column)
   return analysis
 end
 
-function M.analyze_diagnostic_context(filepath, diagnostic)
+function M.analyze_diagnostics(filepath, diagnostic)
   local bufnr, loaded, err = M.ensure_file_loaded(filepath)
   if not loaded then
     return { error = err or ("Could not load file: " .. filepath) }
@@ -72,7 +71,7 @@ function M.analyze_diagnostic_context(filepath, diagnostic)
 
   -- Analyze the symbol at diagnostic location
   if diagnostic.lnum and diagnostic.col then
-    analysis.symbol_analysis = M.analyze_symbol_comprehensive(filepath, diagnostic.lnum, diagnostic.col)
+    analysis.symbol_analysis = M.analyze_symbol(filepath, diagnostic.lnum, diagnostic.col)
   end
 
   -- Get code actions for the diagnostic
@@ -168,144 +167,6 @@ function M.refresh_after_external_changes()
   return file_watcher.refresh_all_watched_files()
 end
 
--- Wait for diagnostic changes after file modifications
-function M.wait_for_diagnostic_update(files, max_wait_ms, poll_interval_ms)
-  max_wait_ms = max_wait_ms or 5000  -- 5 second default
-  poll_interval_ms = poll_interval_ms or 100  -- 100ms polling
-  files = files or {}
-
-  local start_time = vim.loop.now()
-  local initial_diagnostics = {}
-
-  -- Capture initial diagnostic state
-  for _, file in ipairs(files) do
-    local bufnr = vim.fn.bufnr(file)
-    if bufnr ~= -1 then
-      initial_diagnostics[file] = vim.diagnostic.get(bufnr)
-    end
-  end
-
-  -- Poll for changes
-  while (vim.loop.now() - start_time) < max_wait_ms do
-    local has_changed = false
-
-    for _, file in ipairs(files) do
-      local bufnr = vim.fn.bufnr(file)
-      if bufnr ~= -1 then
-        local current_diagnostics = vim.diagnostic.get(bufnr)
-        local initial = initial_diagnostics[file] or {}
-
-        -- Compare diagnostic counts as a simple change indicator
-        if #current_diagnostics ~= #initial then
-          has_changed = true
-          break
-        end
-      end
-    end
-
-    if has_changed then
-      return {
-        success = true,
-        wait_time_ms = vim.loop.now() - start_time,
-        message = "Diagnostics updated"
-      }
-    end
-
-    vim.wait(poll_interval_ms)
-  end
-
-  return {
-    success = false,
-    wait_time_ms = max_wait_ms,
-    message = "Timeout waiting for diagnostic update"
-  }
-end
-
--- Enhanced refresh with diagnostic monitoring
-function M.refresh_and_wait_for_update(files, max_wait_ms)
-  local refresh_result = M.refresh_after_external_changes()
-  local wait_result = M.wait_for_diagnostic_update(files, max_wait_ms)
-
-  return {
-    refresh_result = refresh_result,
-    wait_result = wait_result,
-    success = refresh_result.success and wait_result.success
-  }
-end
-
--- Wait for LSP clients to be ready after file operations
-function M.wait_for_lsp_ready(files, max_wait_ms)
-  max_wait_ms = max_wait_ms or 3000  -- 3 second default
-  local start_time = vim.loop.now()
-
-  while (vim.loop.now() - start_time) < max_wait_ms do
-    local all_ready = true
-
-    for _, file in ipairs(files or {}) do
-      local bufnr = vim.fn.bufnr(file)
-      if bufnr ~= -1 then
-        local clients = vim.lsp.get_active_clients({ bufnr = bufnr })
-        local has_active_client = false
-
-        for _, client in ipairs(clients) do
-          if client.server_capabilities and client.server_capabilities.diagnosticProvider then
-            has_active_client = true
-            break
-          end
-        end
-
-        if not has_active_client then
-          all_ready = false
-          break
-        end
-      end
-    end
-
-    if all_ready then
-      return {
-        success = true,
-        wait_time_ms = vim.loop.now() - start_time,
-        message = "LSP clients ready"
-      }
-    end
-
-    vim.wait(50)  -- Short poll interval for LSP readiness
-  end
-
-  return {
-    success = false,
-    wait_time_ms = max_wait_ms,
-    message = "Timeout waiting for LSP clients"
-  }
-end
-
-function M.smart_refresh_and_wait(files, options)
-  options = options or {}
-  local max_wait_ms = options.max_wait_ms or 5000
-
-  -- Step 1: Use unified refresh system for perfect LSP sync
-  local refresh_result
-  if files and #files > 0 then
-    refresh_result = unified_refresh.unified_batch_refresh(files)
-  else
-    -- Fallback to old file watcher method if no specific files provided
-    refresh_result = { success = true, results = M.refresh_after_external_changes() }
-  end
-
-  -- Step 2: Wait for LSP clients to be ready
-  local lsp_ready_result = M.wait_for_lsp_ready(files, max_wait_ms / 2)
-
-  -- Step 3: Wait for diagnostic updates
-  local diagnostic_update_result = M.wait_for_diagnostic_update(files, max_wait_ms / 2)
-
-  return {
-    refresh_result = refresh_result,
-    lsp_ready_result = lsp_ready_result,
-    diagnostic_update_result = diagnostic_update_result,
-    success = refresh_result.success and lsp_ready_result.success,
-    total_wait_time_ms = (lsp_ready_result.wait_time_ms or 0) + (diagnostic_update_result.wait_time_ms or 0)
-  }
-end
 function M.check_all_files_staleness()
   return file_watcher.check_all_files_staleness()
 end

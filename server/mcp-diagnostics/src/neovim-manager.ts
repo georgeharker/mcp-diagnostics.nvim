@@ -474,7 +474,7 @@ export class NeovimDiagnosticsManager {
         for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
           if vim.api.nvim_buf_is_loaded(bufnr) then
             -- Trigger LSP diagnostic refresh if clients are attached
-            local clients = vim.lsp.get_active_clients({bufnr = bufnr})
+            local clients = vim.lsp.get_clients({bufnr = bufnr})
             for _, client in ipairs(clients) do
               if client.server_capabilities.diagnosticProvider then
                 vim.lsp.diagnostic.on_publish_diagnostics(nil, {
@@ -611,7 +611,7 @@ export class NeovimDiagnosticsManager {
         vim.fn.bufload(bufnr)
         vim.api.nvim_set_current_buf(bufnr)
         
-        local clients = vim.lsp.get_active_clients({bufnr = bufnr})
+        local clients = vim.lsp.get_clients({bufnr = bufnr})
         if #clients == 0 then
           return { error = "No LSP client attached to buffer" }
         end
@@ -679,7 +679,7 @@ export class NeovimDiagnosticsManager {
       const result = await nvim.lua(`
         local query = ${query ? `"${query}"` : '""'}
         
-        local clients = vim.lsp.get_active_clients()
+        local clients = vim.lsp.get_clients()
         if #clients == 0 then
           return { error = "No LSP clients active" }
         end
@@ -749,7 +749,7 @@ export class NeovimDiagnosticsManager {
         vim.fn.bufload(bufnr)
         vim.api.nvim_set_current_buf(bufnr)
         
-        local clients = vim.lsp.get_active_clients({bufnr = bufnr})
+        local clients = vim.lsp.get_clients({bufnr = bufnr})
         if #clients == 0 then
           return { error = "No LSP client attached to buffer" }
         end

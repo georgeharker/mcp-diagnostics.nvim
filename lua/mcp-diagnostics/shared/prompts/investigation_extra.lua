@@ -31,6 +31,13 @@ function M.create_investigation_prompt(focus_file, severity_priority)
 
 🎯 **MANDATORY SYSTEMATIC APPROACH** - Follow this comprehensive workflow:
 
+### 0. **🚀 POWER TOOLS FOR FASTER INVESTIGATION** (Use These First!)
+   - **🎯 `analyze_diagnostics`** - Get comprehensive context for ANY diagnostic with related symbols, code actions, and fix suggestions
+   - **🔍 `symbol_lookup`** - Find ANY symbol by name instantly across the entire workspace  
+   - **⚡ `analyze_symbol`** - Get complete symbol analysis (hover + definition + references + usage) in ONE call
+   - **🧠 `correlate_diagnostics`** - Discover patterns and relationships between multiple diagnostics
+   - **📊 `buffer_status`** - Check which files are loaded and LSP client status
+
 ### 1. **COMPLETE DIAGNOSTIC RESOLUTION** (Zero Remaining Issues)
    - Fix ALL errors first (blocking issues)
    - Address ALL warnings (code quality issues)
@@ -38,7 +45,10 @@ function M.create_investigation_prompt(focus_file, severity_priority)
    - Verify zero diagnostics remain at the end
 
 ### 2. **MANDATORY LSP EXPLORATION** (Before Any Fix)
+   - **🎯 START HERE**: Use `analyze_diagnostics` on complex/unclear diagnostics
+   - **🔍 DISCOVER**: Use `symbol_lookup` to find symbols mentioned in error messages
    - **ALWAYS** use `lsp_hover` on every symbol involved in diagnostics
+   - **⚡ EFFICIENCY**: Use `analyze_symbol` for comprehensive symbol understanding
    - **ALWAYS** use `lsp_definition` to understand symbol origins
    - **ALWAYS** use `lsp_references` to see usage patterns
    - **ALWAYS** use `lsp_document_symbols` to understand file structure
@@ -46,7 +56,9 @@ function M.create_investigation_prompt(focus_file, severity_priority)
 
 ### 3. **DEEP CODE INVESTIGATION** (Required for Each Issue)
    - Start with `lsp_document_symbols` to map file structure
+   - **🚀 SHORTCUT**: Use `symbol_lookup` to instantly find any symbol by name
    - Use `lsp_hover` extensively on all unfamiliar symbols
+   - **⚡ POWER MOVE**: Use `analyze_symbol` instead of multiple individual LSP calls
    - Trace execution paths with `lsp_definition` chains
    - Analyze impact scope with `lsp_references`
    - Check for automated fixes with `lsp_code_actions`

@@ -10,19 +10,15 @@ The Unified Refresh System provides atomic buffer reload + LSP notification oper
 
 ### **Core Problem Solved**
 ```lua
--- OLD (Broken): Race condition between buffer and LSP
-vim.cmd('edit!')  -- Buffer changedtick becomes X
+ vim.cmd('checktime')  -- Buffer changedtick becomes X (only if file changed)
 sleep(2000)       -- Hope LSP catches up
 notify_lsp(file, our_counter)  -- Sends version Y ≠ X
--- Result: LSP server confused by version mismatch
 ```
 
 ```lua  
--- NEW (Perfect): Atomic operation with version sync
-vim.cmd('edit!')  -- Buffer changedtick becomes X
+ vim.cmd('checktime')  -- Buffer changedtick becomes X (graceful, preserves state)
 local version = vim.api.nvim_buf_get_changedtick(bufnr)  -- Get X
 notify_lsp_with_version(file, version)  -- Send X
--- Result: Perfect LSP synchronization
 ```
 
 ## 🧩 **Component Architecture**
@@ -52,14 +48,15 @@ end)
 **Scope:** Performs actual refresh with perfect synchronization
 
 ```lua
--- Mental Model: "Emergency Response Team"  
 function unified_external_refresh(filepath, mode)
   local before_tick = vim.api.nvim_buf_get_changedtick(bufnr)
-  vim.cmd('edit!')  -- Atomic buffer reload
+  vim.cmd('checktime')  -- Graceful buffer reload (only if changed)
   local after_tick = vim.api.nvim_buf_get_changedtick(bufnr)
   
-  -- KEY: Use Neovim's actual version for LSP
-  lsp_interact.notify_lsp_file_changed_with_version(filepath, bufnr, after_tick)
+  -- KEY: Only notify LSP if file actually changed
+  if after_tick ~= before_tick then
+    lsp_interact.notify_lsp_file_changed_with_version(filepath, bufnr, after_tick)
+  end
   
   return { success = true, before_version = before_tick, after_version = after_tick }
 end
@@ -123,7 +120,7 @@ end
                                                             ▼
 ┌─────────────────┐    ┌───────────────────┐    ┌─────────────────────┐
 │  LSP Server    │◀───│  lsp_interact.lua │◀───│   Buffer Reload     │
-│  (Diagnostics) │    │   (Protocol)      │    │ (vim.cmd('edit!'))  │
+│  (Diagnostics) │    │   (Protocol)      │    │(vim.cmd('checktime'))│
 └─────────────────┘    └───────────────────┘    └─────────────────────┘
 ```
 

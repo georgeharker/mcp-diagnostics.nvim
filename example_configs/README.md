@@ -1,79 +1,184 @@
-# Example Configurations
+# Configuration Examples
 
-This directory contains example configurations and setup files for the MCP Diagnostics plugin.
+This directory contains complete configuration examples for all integration modes.
 
-## 📁 Files Overview
+## 🎨 **CodeCompanion Integration** (Recommended)
 
-### Neovim Configuration Examples
+**File**: [`codecompanion_complete.lua`](codecompanion_complete.lua)
 
-- **`mcphub_examples.lua`** - Complete mcphub.nvim integration examples
-  - Basic setup with auto-approve
-  - Manual registration examples
-  - Advanced configuration options
-  
-- **`server_examples.lua`** - External server mode examples  
-  - Basic server setup
-  - Auto-build and launch configurations
-  - Development and production setups
+Complete CodeCompanion integration with:
+- ✅ All 14 diagnostic and LSP tools
+- ✅ 4 context injection variables (`#{diagnostics}`, `#{symbols}`, etc.)
+- ✅ Natural language usage examples
+- ✅ User command shortcuts
 
-### External Client Configurations
+**Best for**: Users who want the most natural AI integration experience.
 
-- **`claude_desktop_config_example.json`** - Ready-to-use Claude Desktop configurations
-  - Socket and TCP connection examples
-  - Auto-launch configurations
-  - Headless and custom config examples
+## 🔧 **MCPHub Integration**
 
-- **`mcpServers.json`** - Alternative MCP server configuration format
-  - Same examples as Claude Desktop config
-  - Can be used with other MCP clients
+**File**: [`mcphub_complete.lua`](mcphub_complete.lua)
+
+Complete MCPHub integration with:
+- ✅ All diagnostic analysis tools
+- ✅ All LSP navigation tools  
+- ✅ Buffer management tools
+- ✅ Auto-approve and debug configurations
+
+**Best for**: Users who want native Lua integration with comprehensive tool access.
+
+## 🌐 **External Server Integration**
+
+**File**: [`server_complete.lua`](server_complete.lua)
+
+Complete external server setup with:
+- ✅ Socket and TCP server options
+- ✅ Node.js server auto-build
+- ✅ Claude Desktop configuration
+- ✅ External MCP client examples
+
+**Best for**: Advanced users integrating with Claude Desktop or custom MCP clients.
 
 ## 🚀 Quick Setup Examples
 
-### For mcphub.nvim Users (Recommended)
+### CodeCompanion (Natural Variables)
 
 ```lua
--- Minimal setup - just add to your Neovim config
-require("mcp-diagnostics").setup({ mode = "mcphub" })
+-- Install both plugins
+{
+  "olimorris/codecompanion.nvim",
+  config = function() require("codecompanion").setup() end
+},
+{
+  "georgeharker/mcp-diagnostics.nvim",
+  config = function()
+    require("mcp-diagnostics.codecompanion").setup({ auto_register = true })
+  end
+}
 
--- Or with auto-approve for seamless AI interactions
-require("mcp-diagnostics").setup({
-  mode = "mcphub",
-  mcphub = { auto_approve = true }
-})
+-- Usage in CodeCompanion chat:
+-- "Help me fix #{diagnostics}"
+-- "I have #{diagnostic_summary}, prioritize for me"
 ```
 
-### For Claude Desktop Users
+### MCPHub (Tool Access)
 
-1. **Copy** `claude_desktop_config_example.json` content to `~/.claude_desktop_config.json`
-2. **Update** the file paths to match your plugin installation
-3. **Build** the server: `cd server/mcp-diagnostics && npm install && npm run build`
+```lua
+-- Install both plugins
+{
+  "ravitemer/mcphub.nvim",
+  config = function() require("mcphub").setup() end
+},
+{
+  "georgeharker/mcp-diagnostics.nvim", 
+  dependencies = { "ravitemer/mcphub.nvim" },
+  config = function()
+    require("mcp-diagnostics").setup({ mode = "mcphub" })
+  end
+}
 
-### For Development
+-- AI can use: diagnostic_hotspots, diagnostic_stats, lsp_hover, etc.
+```
 
-See the individual example files for:
-- Debug configurations
-- Custom server names and ports
-- Development vs production setups
-- Troubleshooting configurations
+### External Server (Claude Desktop)
 
-## 📖 Usage
+```lua
+-- Neovim setup
+{
+  "georgeharker/mcp-diagnostics.nvim",
+  config = function()
+    require("mcp-diagnostics").setup({
+      mode = "server",
+      server = { auto_start_server = true }
+    })
+  end
+}
+```
 
-1. **Browse** the relevant example file for your setup
-2. **Copy** the configuration that matches your needs
-3. **Modify** paths and settings as needed
-4. **Test** with `:checkhealth mcp-diagnostics`
+```json
+// Claude Desktop config (~/.claude_desktop_config.json)
+{
+  "mcpServers": {
+    "mcp-diagnostics": {
+      "command": "node",
+      "args": ["/path/to/plugin/server/mcp-diagnostics/dist/index.js"],
+      "env": { "NVIM_SERVER_ADDRESS": "/tmp/nvim-mcp-diagnostics.sock" }
+    }
+  }
+}
+```
+
+## 📊 Feature Comparison
+
+| Feature | CodeCompanion | MCPHub | Server |
+|---------|---------------|--------|--------|
+| **Context Variables** | ✅ `#{diagnostics}`, `#{symbols}` | ❌ | ❌ |
+| **Natural Language** | ✅ Most intuitive | ✅ Good | ✅ Good |  
+| **Tool Count** | 14 tools + 4 variables | 14 tools | 14 functions |
+| **Setup Complexity** | Simple | Simple | Advanced |
+| **External Clients** | ❌ | ❌ | ✅ Claude Desktop, etc. |
+
+## 🎯 Which Should You Choose?
+
+### Choose **CodeCompanion** if:
+- You want the most natural experience  
+- You like context injection (`#{diagnostics}`)
+- You prefer conversational AI interaction
+- You want minimal setup complexity
+
+### Choose **MCPHub** if:  
+- You want comprehensive tool access
+- You prefer native Lua integration
+- You like the mcphub ecosystem
+- You want auto-approve capabilities
+
+### Choose **Server** if:
+- You use Claude Desktop
+- You want external MCP client integration  
+- You need JSON export capabilities
+- You're building custom MCP applications
+
+## 📖 Usage Guides
+
+### CodeCompanion Variables
+```lua
+-- Natural language with automatic context:
+"Help me fix #{diagnostics}"                    -- Current file errors
+"I have #{diagnostic_summary}, where to start?" -- Project overview
+"Explain #{symbols} structure"                  -- File architecture  
+"With #{buffers} open, what needs attention?"   -- Multi-file context
+```
+
+### Tool Commands (MCPHub/Server)
+```lua
+-- AI can automatically use these tools:
+diagnostic_hotspots()      -- Find worst files
+diagnostic_stats()         -- Comprehensive analysis
+lsp_hover(file, line, col) -- Symbol information
+lsp_references(...)        -- Find usages
+buffer_status()           -- File status
+```
 
 ## 🔧 Path Updates Required
 
-When using these examples, update these paths to match your installation:
+When using these examples, update these paths:
 
-- `/absolute/path/to/mcp-diagnostics/` → Your actual plugin path
-- `/tmp/nvim.sock` → Your preferred socket path (optional)
-- Server names → Customize as needed
+- **Plugin path**: `/path/to/plugin/` → Your actual installation path
+- **Socket path**: `/tmp/nvim-mcp-diagnostics.sock` → Your preferred location  
+- **Server names**: Customize as needed for your setup
 
-## 💡 Tips
+## 💡 Pro Tips
 
-- Start with the simplest configuration that works
-- Use `:checkhealth mcp-diagnostics` to verify setup
-- Enable debug mode during initial setup
-- Check the main README.md for troubleshooting help
+1. **Start Simple**: Use the basic setup first, then add advanced features
+2. **Health Check**: Always run `:checkhealth mcp-diagnostics` after setup
+3. **Debug Mode**: Enable `debug = true` during initial configuration
+4. **Test Variables**: Try `#{diagnostic_summary}` in CodeCompanion to verify setup
+5. **Auto-approve**: Consider enabling for seamless AI interactions
+
+## 🆘 Troubleshooting
+
+- **CodeCompanion variables not working**: Check `auto_register = true`
+- **MCPHub tools not appearing**: Verify mcphub.nvim is loaded first  
+- **Server connection issues**: Check socket permissions and paths
+- **Build failures**: Ensure Node.js and npm are installed
+
+See the main [README.md](../README.md) for detailed troubleshooting guides.

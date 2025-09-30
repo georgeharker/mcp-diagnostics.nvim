@@ -1,6 +1,5 @@
 
 local M = {}
-local investigation = require("mcp-diagnostics.shared.prompts.investigation")
 local extra = require("mcp-diagnostics.shared.prompts.investigation_extra")
 
 function M.register_all(mcphub, server_name, server_config)

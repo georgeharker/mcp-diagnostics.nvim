@@ -19,6 +19,8 @@ end
 -- LSP notification functions (expose from lsp_interact)
 M.notify_lsp_file_closed = lsp_interact.notify_lsp_file_closed
 M.notify_lsp_file_changed = lsp_interact.notify_lsp_file_changed
+-- For backward compatibility, also expose the versioned interface
+M.notify_lsp_file_changed_with_version = lsp_interact.notify_lsp_file_changed_with_version
 M.handle_file_deleted = lsp_interact.handle_file_deleted
 M.handle_file_changed = lsp_interact.handle_file_changed
 M.get_lsp_client_status = lsp_interact.get_lsp_client_status

@@ -9,6 +9,7 @@ function M.check()
   -- Try to get configurations using the proper modules
   local mcphub_config = nil
   local server_config = nil
+  local codecompanion_config = nil
 
   -- Check for mcphub configuration
   local has_mcphub_module, mcphub_module = pcall(require, "mcp-diagnostics.mcphub.init")
@@ -20,6 +21,13 @@ function M.check()
   local has_server_module, server_module = pcall(require, "mcp-diagnostics.server.init")
   if has_server_module then
     server_config = server_module.get_config()
+  end
+
+  -- Check for codecompanion configuration
+  local has_codecompanion_module = pcall(require, "mcp-diagnostics.codecompanion.init")
+  if has_codecompanion_module then
+    -- CodeCompanion mode doesn't have persistent config, check if setup was called
+    codecompanion_config = vim.g.mcp_diagnostics_codecompanion_setup or false
   end
 
   -- Check plugin installation
@@ -48,9 +56,29 @@ function M.check()
     if config.debug then
       health.info("Debug mode enabled")
     end
+
+    -- Show file handling configuration
+    local file_deletion_mode = config.file_deletion_mode or "prompt"
+    health.info("File deletion mode: " .. file_deletion_mode)
+
+    local lsp_notify_mode = config.lsp_notify_mode or "auto"
+    health.info("LSP notify mode: " .. lsp_notify_mode)
   elseif server_config then
     health.ok("Configuration found")
     health.info("Mode: server")
+
+    -- Show file handling configuration for server mode too
+    local file_deletion_mode = server_config.file_deletion_mode or "prompt"
+    health.info("File deletion mode: " .. file_deletion_mode)
+
+    local lsp_notify_mode = server_config.lsp_notify_mode or "auto"
+    health.info("LSP notify mode: " .. lsp_notify_mode)
+  elseif codecompanion_config then
+    health.ok("Configuration found")
+    health.info("Mode: codecompanion")
+
+    -- Tool count will be checked in dependencies section
+    health.info("CodeCompanion LSP tools integration enabled")
   else
     health.warn("No configuration found - run setup() first")
   end
@@ -64,6 +92,35 @@ function M.check()
       health.ok("mcphub.nvim is available")
     else
       health.error("mcphub.nvim not found but required for mcphub mode")
+    end
+  end
+
+  -- Check CodeCompanion if in codecompanion mode
+  if codecompanion_config then
+    local has_codecompanion, _codecompanion = pcall(require, "codecompanion")
+    if has_codecompanion then
+      health.ok("CodeCompanion is available")
+
+      -- Check if our tools are properly registered
+      local adapter = require("mcp-diagnostics.codecompanion.adapter")
+      local available, error_msg = adapter.check_codecompanion_availability()
+      if available then
+        health.ok("CodeCompanion configuration is accessible")
+
+        local registered_tools = adapter.get_registered_tool_names()
+        if #registered_tools > 0 then
+          health.ok(string.format("Tools registered with CodeCompanion: %d", #registered_tools))
+          for _, tool_name in ipairs(registered_tools) do
+            health.info("  - " .. tool_name)
+          end
+        else
+          health.warn("No tools registered with CodeCompanion - check configuration")
+        end
+      else
+        health.error("CodeCompanion configuration issue: " .. (error_msg or "unknown"))
+      end
+    else
+      health.error("CodeCompanion not found but required for codecompanion mode")
     end
   end
 
@@ -85,7 +142,10 @@ function M.check()
     "mcp-diagnostics.mcphub.tools",
     "mcp-diagnostics.mcphub.resources",
     "mcp-diagnostics.mcphub.prompts",
-    "mcp-diagnostics.server.init"
+    "mcp-diagnostics.server.init",
+    "mcp-diagnostics.codecompanion.init",
+    "mcp-diagnostics.codecompanion.tools",
+    "mcp-diagnostics.codecompanion.adapter"
   }
 
   for _, module_name in ipairs(core_modules) do
@@ -97,6 +157,8 @@ function M.check()
       if mcphub_config and module_name:match("mcphub") then
         health.error(module_name .. " failed to load: " .. tostring(result))
       elseif server_config and module_name:match("server") then
+        health.error(module_name .. " failed to load: " .. tostring(result))
+      elseif codecompanion_config and module_name:match("codecompanion") then
         health.error(module_name .. " failed to load: " .. tostring(result))
       else
         health.info(module_name .. " (not loaded - different mode)")
@@ -196,8 +258,8 @@ function M.check()
 
   health.start("Recommendations")
 
-  if not mcphub_config and not server_config then
-    health.info("Run require('mcp-diagnostics').setup({ mode = 'mcphub' }) to get started")
+  if not mcphub_config and not server_config and not codecompanion_config then
+    health.info("Run require('mcp-diagnostics').setup({ mode = 'mcphub' }) or setup({ mode = 'codecompanion' }) to get started")
   end
 
   if #lsp_clients == 0 then

@@ -1,0 +1,1 @@
+# Python test package for MCP-Diagnostics LSP testing

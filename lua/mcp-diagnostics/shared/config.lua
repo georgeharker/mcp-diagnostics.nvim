@@ -18,6 +18,7 @@ M.defaults = {
     auto_reload_files = true,
     auto_reload_mode = "auto", -- "auto", "prompt", "off"
     lsp_notify_mode = "auto", -- "auto", "manual", "disabled"
+    file_deletion_mode = "prompt", -- "ignore", "prompt", "auto"
   },
   server = {
     server_address = '/tmp/nvim.sock',
@@ -37,6 +38,7 @@ M.defaults = {
     auto_reload_files = true,
     auto_reload_mode = "auto", -- "auto", "prompt", "off"
     lsp_notify_mode = "auto", -- "auto", "manual", "disabled"
+    file_deletion_mode = "prompt", -- "ignore", "prompt", "auto"
   }
 }
 
@@ -108,6 +110,15 @@ end
    end
    return "auto" -- Default mode
  end
+
+-- Get file deletion mode configuration
+function M.get_file_deletion_mode()
+  local config = M.get_active_config()
+  if config and config.file_deletion_mode then
+    return config.file_deletion_mode
+  end
+  return "prompt" -- Default mode
+end
 
 function M.get_lsp_timeout()
   local config = M.get_active_config()

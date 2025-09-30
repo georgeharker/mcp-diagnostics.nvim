@@ -121,6 +121,107 @@ function M.diagnostic_summary()
   return summary
 end
 
+function M.document_diagnostics(severity, source)
+  -- Get current buffer file
+  local current_file = vim.api.nvim_buf_get_name(0)
+  if current_file == "" then
+    config.log_error("No file is currently open", "[MCP Diagnostics Server]")
+    return { error = "No file is currently open" }
+  end
+  
+  local files = { current_file }
+  local data = diagnostics.get_all_diagnostics(files, severity, source)
+  config.log_info(string.format('Found %d document diagnostics', #data), "[MCP Diagnostics Server]")
+  return data
+end
+
+function M.workspace_diagnostics(files, severity, source)
+  local data = diagnostics.get_all_diagnostics(files, severity, source)
+  config.log_info(string.format('Found %d workspace diagnostics', #data), "[MCP Diagnostics Server]")
+  return data
+end
+
+function M.diagnostic_hotspots(limit)
+  limit = limit or 10
+  local hotspots = diagnostics.get_problematic_files(limit)
+  config.log_info(string.format('Found %d problematic files', #hotspots), "[MCP Diagnostics Server]")
+  return hotspots
+end
+
+function M.diagnostic_stats()
+  local stats = diagnostics.get_diagnostic_stats()
+  config.log_info(string.format('Generated diagnostic statistics: %d total diagnostics with %d error patterns', 
+    stats.summary.total, vim.tbl_count(stats.error_patterns)), "[MCP Diagnostics Server]")
+  return stats
+end
+
+function M.diagnostic_by_severity(severity)
+  local filtered_diagnostics = diagnostics.get_diagnostics_by_severity(severity)
+  config.log_info(string.format('Found %d %s-level diagnostics', #filtered_diagnostics, severity), "[MCP Diagnostics Server]")
+  return filtered_diagnostics
+end
+
+-- LSP Functions for server parity
+function M.lsp_hover(file, line, column)
+  local hover_info = require("mcp-diagnostics.shared.lsp").get_hover_info(file, line, column)
+  config.log_info(string.format('Got hover info for %s:%d:%d', file, line, column), "[MCP Diagnostics Server]")
+  return hover_info
+end
+
+function M.lsp_definition(file, line, column)
+  local definitions = require("mcp-diagnostics.shared.lsp").get_definitions(file, line, column)
+  config.log_info(string.format('Found %d definitions for %s:%d:%d', #(definitions or {}), file, line, column), "[MCP Diagnostics Server]")
+  return definitions
+end
+
+function M.lsp_references(file, line, column)
+  local references = require("mcp-diagnostics.shared.lsp").get_references(file, line, column)
+  config.log_info(string.format('Found %d references for %s:%d:%d', #(references or {}), file, line, column), "[MCP Diagnostics Server]")
+  return references
+end
+
+function M.lsp_document_symbols(file)
+  local symbols = require("mcp-diagnostics.shared.lsp").get_document_symbols(file)
+  config.log_info(string.format('Found %d document symbols for %s', #(symbols or {}), file), "[MCP Diagnostics Server]")
+  return symbols
+end
+
+function M.lsp_workspace_symbols(query)
+  local symbols = require("mcp-diagnostics.shared.lsp").get_workspace_symbols(query)
+  config.log_info(string.format('Found %d workspace symbols for query "%s"', #(symbols or {}), query or ""), "[MCP Diagnostics Server]")
+  return symbols
+end
+
+function M.lsp_code_actions(file, line, column, end_line, end_column)
+  local actions = require("mcp-diagnostics.shared.lsp").get_code_actions(file, line, column, end_line, end_column)
+  config.log_info(string.format('Found %d code actions for %s:%d:%d', #(actions or {}), file, line, column), "[MCP Diagnostics Server]")
+  return actions
+end
+
+-- Buffer Management Functions for server parity
+function M.buffer_status()
+  local status = buffers.get_buffer_status()
+  config.log_info(string.format('Retrieved status for %d buffers', #status), "[MCP Diagnostics Server]")
+  return status
+end
+
+function M.ensure_files_loaded(files)
+  local results = {}
+  for _, file in ipairs(files) do
+    local result = buffers.ensure_buffer_loaded(file, false)
+    table.insert(results, result)
+  end
+  config.log_info(string.format('Loaded %d files', #files), "[MCP Diagnostics Server]")
+  return results
+end
+
+function M.refresh_after_external_changes(files)
+  local refresh_module = require("mcp-diagnostics.shared.unified_refresh")
+  local result = refresh_module.refresh_after_external_changes(files)
+  config.log_info(string.format('Refreshed %d files after external changes', files and #files or 0), "[MCP Diagnostics Server]")
+  return result
+end
+
 function M.export_diagnostics(filename)
   filename = filename or M.config.export_path
   local data = diagnostics.get_all_diagnostics()

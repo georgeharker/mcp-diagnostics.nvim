@@ -4,6 +4,12 @@
 
 local config = require("mcp-diagnostics.shared.config")
 local lsp_interact = require("mcp-diagnostics.shared.lsp_interact")
+
+-- LSP Methods from protocol  
+local LSP_METHODS = {
+    hover = vim.lsp.protocol.Methods.textDocument_hover,
+}
+
 local M = {}
 
 function M.unified_external_refresh(filepath, mode)
@@ -35,10 +41,10 @@ function M.unified_external_refresh(filepath, mode)
   -- Capture version BEFORE reload
   local before_changedtick = vim.api.nvim_buf_get_changedtick(bufnr)
 
-  -- Unified reload: let Neovim handle buffer reload naturally
+  -- Unified reload: use checktime to gracefully reload only if file changed
   local reload_success, reload_error = pcall(function()
     vim.api.nvim_buf_call(bufnr, function()
-      vim.cmd('edit!')
+      vim.cmd('checktime')
     end)
   end)
 
@@ -51,10 +57,16 @@ function M.unified_external_refresh(filepath, mode)
   local after_changedtick = vim.api.nvim_buf_get_changedtick(bufnr)
 
   -- Send LSP notification with Neovim's actual version (KEY INSIGHT!)
-  lsp_interact.notify_lsp_file_changed_with_version(filepath, bufnr, after_changedtick)
+  -- Only notify LSP if file actually changed (checktime is smarter than edit!)
+  if after_changedtick ~= before_changedtick then
+    lsp_interact.notify_lsp_file_changed_with_version(filepath, bufnr, after_changedtick)
+    config.log_debug(string.format("File changed, notified LSP: %s (tick %d -> %d)", 
+      filepath, before_changedtick, after_changedtick), "[Unified Refresh]")
+  else
+    config.log_debug(string.format("File unchanged, no LSP notification needed: %s (tick %d)", 
+      filepath, before_changedtick), "[Unified Refresh]")
+  end
 
-  config.log_debug(string.format("Unified refresh complete: %s (tick %d -> %d)",
-    filepath, before_changedtick, after_changedtick), "[Unified Refresh]")
 
   return {
     success = true,
@@ -88,7 +100,7 @@ function M.unified_batch_refresh(filepaths, mode)
 end
 
 -- Wait for LSP to acknowledge the version change
-function M.wait_for_lsp_acknowledgment(filepath, expected_version, max_wait_ms)
+function M.wait_for_lsp_acknowledgment(filepath, max_wait_ms)
   max_wait_ms = max_wait_ms or 3000
   local start_time = vim.loop.now()
 
@@ -97,32 +109,48 @@ function M.wait_for_lsp_acknowledgment(filepath, expected_version, max_wait_ms)
     return { success = false, reason = "buffer_not_found" }
   end
 
-  -- Wait for LSP to process the new version
-  while (vim.loop.now() - start_time) < max_wait_ms do
-    -- Check if diagnostics have been updated
-    -- This is indirect but reliable - if LSP processed the version,
-    -- it should have sent new diagnostics (even if they're the same)
-    local current_tick = vim.api.nvim_buf_get_changedtick(bufnr)
-
-    if current_tick >= expected_version then
-      -- Give LSP a moment to process
-      vim.wait(100)
-      return {
-        success = true,
-        wait_time = vim.loop.now() - start_time,
-        final_version = current_tick
-      }
-    end
-
-    vim.wait(50)  -- Short polling interval
+  -- Use synchronous LSP request to ensure LSP processed changes
+  local clients = vim.lsp.get_clients({ bufnr = bufnr })
+  if #clients == 0 then
+    return { success = false, reason = "no_lsp_clients" }
   end
 
-  return {
-    success = false,
-    reason = "timeout",
-    wait_time = max_wait_ms,
-    expected_version = expected_version
+  -- Use first available client for sync request
+  local client = clients[1]
+
+  -- Make a lightweight synchronous request to ensure LSP is caught up
+  local params = {
+    textDocument = {
+      uri = vim.uri_from_bufnr(bufnr)
+    },
+    position = { line = 0, character = 0 }
   }
+
+  local success, result = pcall(function()
+    -- Use a timeout that's reasonable but not too long
+    local timeout = math.min(max_wait_ms, 1000) -- Max 1 second for sync request
+    return client.request_sync(LSP_METHODS.hover, params, timeout)
+  end)
+
+  local wait_time = vim.loop.now() - start_time
+
+  if success and result then
+    return {
+      success = true,
+      wait_time = wait_time,
+      final_version = vim.api.nvim_buf_get_changedtick(bufnr),
+      method = "sync_request",
+      client_name = client.name
+    }
+  else
+    return {
+      success = false,
+      reason = "sync_request_failed",
+      wait_time = wait_time,
+      error = result,
+      client_name = client.name
+    }
+  end
 end
 
 -- Smart refresh with acknowledgment
@@ -137,7 +165,6 @@ function M.unified_refresh_and_wait(filepath, mode, max_wait_ms)
   if refresh_result.version_changed then
     local wait_result = M.wait_for_lsp_acknowledgment(
       filepath,
-      refresh_result.after_version,
       max_wait_ms
     )
 

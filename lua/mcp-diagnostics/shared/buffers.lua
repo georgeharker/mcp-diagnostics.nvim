@@ -4,7 +4,27 @@
 local config = require("mcp-diagnostics.shared.config")
 local M = {}
 
--- Get buffer name safely
+-- Setup detection for when user intentionally edits a hidden buffer
+local function setup_user_edit_detection(bufnr, filepath)
+  -- Set up autocmd to detect when buffer becomes visible due to user action
+  vim.api.nvim_create_autocmd({"BufWinEnter", "BufEnter"}, {
+    buffer = bufnr,
+    once = true, -- Only trigger once
+    callback = function()
+      -- Check if buffer is now listed (indicating user action)
+      local is_listed = vim.api.nvim_buf_get_option(bufnr, 'buflisted')
+      local is_hidden = vim.api.nvim_buf_get_option(bufnr, 'bufhidden')
+
+      if is_listed and is_hidden == 'hide' then
+        -- User has made buffer listed (via :edit or similar), make it fully visible
+        vim.api.nvim_buf_set_option(bufnr, 'bufhidden', '')
+        config.log_debug(string.format("Buffer %d (%s) made fully visible by user action", bufnr, filepath), "[Shared Buffers]")
+      end
+    end,
+    desc = "Make hidden buffer fully visible when user edits it"
+  })
+end
+
 local function get_buffer_name(bufnr)
   local name = vim.api.nvim_buf_get_name(bufnr)
   if name == "" then
@@ -36,18 +56,10 @@ function M.get_buffer_status()
         -- Check if buffer represents a real file
         -- Get LSP client info
         local lsp_clients = {}
-        if vim.lsp.get_clients then
-          -- Neovim 0.10+
-          local clients = vim.lsp.get_clients({ bufnr = bufnr })
-          for _, client in ipairs(clients) do
-            table.insert(lsp_clients, client.name)
-          end
-        else
-          -- Neovim 0.9 and earlier
-          local clients = vim.lsp.get_active_clients({ bufnr = bufnr })
-          for _, client in ipairs(clients) do
-            table.insert(lsp_clients, client.name)
-          end
+        -- Neovim 0.10+
+        local clients = vim.lsp.get_clients({ bufnr = bufnr })
+        for _, client in ipairs(clients) do
+          table.insert(lsp_clients, client.name)
         end
 
         -- Get buffer info
@@ -83,7 +95,6 @@ function M.get_buffer_status()
   return status
 end
 
--- Ensure a file is loaded into a buffer
 function M.ensure_buffer_loaded(filepath, enable_auto_reload)
   config.log_debug(string.format("Ensuring buffer loaded: %s", filepath), "[Shared Buffers]")
 
@@ -92,10 +103,28 @@ function M.ensure_buffer_loaded(filepath, enable_auto_reload)
     enable_auto_reload = config.is_feature_enabled('auto_reload_files')
   end
 
+  -- First, try to find existing buffer (reuse where possible)
   local bufnr = vim.fn.bufnr(filepath)
+  local buffer_created = false
+
   if bufnr == -1 then
-    -- Buffer doesn't exist, create it
+    -- Buffer doesn't exist, create it as unlisted/hidden
     bufnr = vim.fn.bufnr(filepath, true)
+    buffer_created = true
+
+    -- Make the buffer unlisted and hidden so it doesn't appear in CodeCompanion UI
+    vim.api.nvim_buf_set_option(bufnr, 'buflisted', false)
+    vim.api.nvim_buf_set_option(bufnr, 'bufhidden', 'hide')
+
+    -- Set up autocmd to make buffer visible when user intentionally edits it
+    vim.schedule(function()
+      setup_user_edit_detection(bufnr, filepath)
+    end)
+
+    config.log_debug(string.format("Created unlisted buffer %d for file: %s", bufnr, filepath), "[Shared Buffers]")
+  else
+    -- Buffer exists - reuse it
+    config.log_debug(string.format("Reusing existing buffer %d for file: %s", bufnr, filepath), "[Shared Buffers]")
   end
 
   if not vim.api.nvim_buf_is_loaded(bufnr) then

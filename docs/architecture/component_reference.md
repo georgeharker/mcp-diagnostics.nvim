@@ -12,6 +12,12 @@
 | ⏰ Wait for LSP confirmation | `unified_refresh.lua` | `unified_refresh_and_wait(filepath, mode, timeout)` |
 | 🔧 High-level MCP operations | `lsp_extra.lua` | `smart_refresh_and_wait(files, options)` |
 | 📡 Direct LSP communication | `lsp_interact.lua` | `notify_lsp_file_changed_with_version()` |
+| 🩺 Get diagnostic data | `diagnostics.lua` | `get_all_diagnostics(files, severity, source)` |
+| 📊 Diagnostic analytics | `diagnostics.lua` | `get_diagnostic_stats()` |
+| 🔥 Find problem files | `diagnostics.lua` | `get_problematic_files(limit)` |
+| 🎯 Filter by severity | `diagnostics.lua` | `get_diagnostics_by_severity(severity)` |
+| 🔮 LSP queries | `lsp.lua` | `get_hover_info()`, `get_definitions()`, etc. |
+| 📋 Buffer management | `buffers.lua` | `get_buffer_status()`, `ensure_buffer_loaded()` |
 
 ---
 
@@ -34,7 +40,14 @@
           │              ┌───────▼───────┐              │
           └──────────────▶│    config     │◀─────────────┘
                          │  (Settings)   │
-                         └───────────────┘
+                         └───────┬───────┘
+                                 │ required by
+                ┌────────────────┼────────────────┐
+                │                │                │
+        ┌───────▼───────┐ ┌──────▼──────┐ ┌──────▼──────┐
+        │  diagnostics  │ │     lsp     │ │   buffers   │
+        │ (Error Data)  │ │(Queries)    │ │(Management) │
+        └───────────────┘ └─────────────┘ └─────────────┘
 ```
 
 **✅ Zero Circular Dependencies:** Clean hierarchy ensures maintainability

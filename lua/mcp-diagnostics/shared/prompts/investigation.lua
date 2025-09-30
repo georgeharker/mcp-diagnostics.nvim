@@ -30,6 +30,12 @@ function M.create_investigation_prompt(focus_file, severity_priority)
 
 🎯 **MANDATORY SYSTEMATIC APPROACH** - Follow this comprehensive workflow:
 
+### 0. **POWER TOOLS FOR INVESTIGATION** (Use These First!)
+   - **NEW**: `analyze_diagnostics` - Get comprehensive context for specific diagnostics
+   - **NEW**: `symbol_lookup` - Find symbols by name without knowing location
+   - **NEW**: `analyze_symbol` - Get complete symbol analysis in one call
+   - `correlate_diagnostics` - Find patterns across multiple diagnostics
+
 ### 1. **COMPLETE DIAGNOSTIC RESOLUTION** (Zero Remaining Issues)
    - Fix ALL errors first (blocking issues)
    - Address ALL warnings (code quality issues)
@@ -37,7 +43,10 @@ function M.create_investigation_prompt(focus_file, severity_priority)
    - Verify zero diagnostics remain at the end
 
 ### 2. **MANDATORY LSP EXPLORATION** (Before Any Fix)
+   - **POWER MOVE**: Use `analyze_diagnostics` on complex diagnostics for full context
+   - **DISCOVERY**: Use `symbol_lookup` to find symbols mentioned in error messages
    - **ALWAYS** use `lsp_hover` on every symbol involved in diagnostics
+   - **COMPREHENSIVE**: Use `analyze_symbol` for complete symbol understanding
    - **ALWAYS** use `lsp_definition` to understand symbol origins
    - **ALWAYS** use `lsp_references` to see usage patterns
    - **ALWAYS** use `lsp_document_symbols` to understand file structure
@@ -45,10 +54,33 @@ function M.create_investigation_prompt(focus_file, severity_priority)
 
 ### 3. **DEEP CODE INVESTIGATION** (Required for Each Issue)
    - Start with `lsp_document_symbols` to map file structure
+   - Use `symbol_lookup` to quickly find symbols mentioned in errors
    - Use `lsp_hover` extensively on all unfamiliar symbols
+   - **EFFICIENCY**: Use `analyze_symbol` instead of multiple individual calls
    - Trace execution paths with `lsp_definition` chains
    - Analyze impact scope with `lsp_references`
    - Check for automated fixes with `lsp_code_actions`
+
+### 4. **PRACTICAL POWER TOOL EXAMPLES** (Copy These Patterns!)
+   ```
+   # When you see "undefined variable 'UserModel'" in diagnostics:
+   symbol_lookup({"symbol_name": "UserModel"})
+   
+   # For comprehensive analysis of any symbol:
+   analyze_symbol({"file": "path/to/file.lua", "line": 42, "column": 15})
+   
+   # For deep diagnostic investigation:
+   analyze_diagnostics({"file": "path/to/file.lua", "diagnostic_index": 0})
+   
+   # Find patterns across multiple errors:
+   correlate_diagnostics({})
+   ```
+
+### 5. **WHY USE THE NEW TOOLS** (Massive Efficiency Gains!)
+   - `symbol_lookup`: Find symbols without knowing exact location (saves 5-10 tool calls)
+   - `analyze_symbol`: Get hover + definition + references in ONE call (3x faster) 
+   - `analyze_diagnostics`: Get diagnostic + symbol context + fixes in ONE call (5x faster)
+   - `correlate_diagnostics`: Spot patterns humans miss (prevents duplicate work)
 
 ### 4. **COMPREHENSIVE UNDERSTANDING PROTOCOL** (Non-Negotiable)
    For EVERY diagnostic, you MUST:

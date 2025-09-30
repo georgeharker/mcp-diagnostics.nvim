@@ -69,6 +69,58 @@ function M.register_diagnostic_tools(mcphub, server_name, server_config)
       return res:text(vim.json.encode(summary), "application/json"):send()
     end
   })
+
+  -- diagnostic_hotspots tool - find most problematic files
+  mcphub.add_tool(server_name, {
+    name = "diagnostic_hotspots",
+    description = "🔥 CRITICAL PRIORITY TOOL: Identify the most problematic files ranked by diagnostic severity to focus remediation efforts. Files are scored by: errors×3 + warnings×2 + info + hints×0.5. Start fixing the highest-scored files first for maximum impact on code quality.",
+    inputSchema = {
+      type = "object",
+      properties = {
+        limit = {
+          type = "number",
+          description = "Maximum number of problematic files to return (default: 10). Start with top 3-5 files for focused remediation."
+        }
+      }
+    },
+    handler = function(_req, res)
+      local limit = _req.params.limit or 10
+      local hotspots = diagnostics.get_problematic_files(limit)
+      return res:text(vim.json.encode(hotspots), "application/json"):send()
+    end
+  })
+
+  -- diagnostic_stats tool - advanced analytics
+  mcphub.add_tool(server_name, {
+    name = "diagnostic_stats",
+    description = "📊 COMPREHENSIVE ANALYSIS TOOL: Get advanced diagnostic statistics with error pattern analysis and source breakdown. Essential for understanding systemic issues and planning comprehensive code quality improvements. Reveals recurring patterns that indicate architectural or process issues.",
+    handler = function(_req, res)
+      local stats = diagnostics.get_diagnostic_stats()
+      return res:text(vim.json.encode(stats), "application/json"):send()
+    end
+  })
+
+  -- diagnostic_by_severity tool - severity-filtered diagnostics
+  mcphub.add_tool(server_name, {
+    name = "diagnostic_by_severity",
+    description = "🎯 FOCUSED REMEDIATION TOOL: Get diagnostics filtered by specific severity level. Use 'error' for blocking issues that prevent compilation/execution, 'warn' for quality issues, 'info' for suggestions, 'hint' for optimizations. Essential for systematic issue resolution by priority level.",
+    inputSchema = {
+      type = "object",
+      properties = {
+        severity = {
+          type = "string",
+          enum = { "error", "warn", "info", "hint" },
+          description = "Severity level to filter by. Start with 'error' for critical issues, then 'warn' for quality issues."
+        }
+      },
+      required = { "severity" }
+    },
+    handler = function(_req, res)
+      local severity = _req.params.severity
+      local filtered_diagnostics = diagnostics.get_diagnostics_by_severity(severity)
+      return res:text(vim.json.encode(filtered_diagnostics), "application/json"):send()
+    end
+  })
 end
 
 function M.register_lsp_tools(mcphub, server_name, server_config)
@@ -77,7 +129,7 @@ function M.register_lsp_tools(mcphub, server_name, server_config)
   -- LSP hover tool with enhanced description
   mcphub.add_tool(server_name, {
     name = "lsp_hover",
-    description = "🔍 CRITICAL INVESTIGATION TOOL: Get comprehensive symbol information including types, documentation, and signatures. Use this EXTENSIVELY - hover on EVERY symbol you encounter during diagnostic investigation. This is your primary tool for understanding what code does before making any changes. Never guess what a symbol does - always hover first!",
+    description = "🔍 CRITICAL INVESTIGATION TOOL: Get comprehensive symbol information including types, documentation, and signatures. NOW SUPPORTS BOTH position-based AND name-based lookup! Use this EXTENSIVELY - hover on EVERY symbol you encounter during diagnostic investigation. This is your primary tool for understanding what code does before making any changes. Never guess what a symbol does - always hover first!",
     inputSchema = {
       type = "object",
       properties = {
@@ -160,6 +212,54 @@ function M.register_lsp_tools(mcphub, server_name, server_config)
     },
     handler = function(_req, res)
       local symbols = lsp.get_workspace_symbols(_req.params.query)
+      return res:text(vim.json.encode(symbols), "application/json"):send()
+    end
+  })
+
+  -- Symbol lookup by name tool
+  mcphub.add_tool(server_name, {
+    name = "symbol_lookup",
+    description = "🎯 REVOLUTIONARY SYMBOL FINDER: Find ANY symbol by name across the entire workspace without knowing its location! No more hunting through files - just specify the symbol name and optional context. Perfect for 'Find the UserModel class' or 'Where is the validate function?' queries. Supports context disambiguation when multiple symbols match. This changes everything!",
+    inputSchema = {
+      type = "object",
+      properties = {
+        symbol_name = {
+          type = "string",
+          description = "Name or partial name of the symbol to find"
+        },
+        context_file = {
+          type = "string",
+          description = "Optional: File context for disambiguation (when multiple symbols match)"
+        },
+        max_results = {
+          type = "number",
+          description = "Maximum number of results to return (default: 20)"
+        }
+      },
+      required = { "symbol_name" }
+    },
+    handler = function(_req, res)
+      local symbols = lsp.get_workspace_symbols(_req.params.symbol_name)
+
+      -- Apply context filtering if provided
+      if _req.params.context_file and symbols then
+        local filtered = {}
+        for _, symbol in ipairs(symbols) do
+          if symbol.location and symbol.location.uri then
+            local file_path = vim.uri_to_fname(symbol.location.uri)
+            if file_path:match(_req.params.context_file) then
+              table.insert(filtered, symbol)
+            end
+          end
+        end
+        symbols = filtered
+      end
+
+      -- Apply result limit
+      if _req.params.max_results and symbols and #symbols > _req.params.max_results then
+        symbols = vim.list_slice(symbols, 1, _req.params.max_results)
+      end
+
       return res:text(vim.json.encode(symbols), "application/json"):send()
     end
   })
@@ -263,54 +363,9 @@ function M.register_enhanced_tools(mcphub, server_name, server_config)
     end
   })
 
-  -- Enhanced file loading with smart waiting
-  mcphub.add_tool(server_name, {
-    name = "ensure_files_loaded_with_wait",
-    description = "📂⏱️ ENHANCED FILE LOADING: Load files and intelligently wait for LSP diagnostics to be ready. Eliminates timing issues by monitoring LSP client readiness and diagnostic updates. Perfect for comprehensive analysis workflows.",
-    inputSchema = {
-      type = "object",
-      properties = {
-        files = {
-          type = "array",
-          items = { type = "string" },
-          description = "Array of file paths to load and monitor"
-        },
-        reload_mode = {
-          type = "string",
-          enum = { "reload", "ask", "none" },
-          description = "File reload handling mode"
-        },
-        max_wait_ms = {
-          type = "number",
-          description = "Maximum time to wait for LSP readiness (default: 5000ms)"
-        }
-      },
-      required = { "files" }
-    },
-    handler = function(_req, res)
-      local files = _req.params.files
-      local reload_mode = _req.params.reload_mode
-      local max_wait_ms = _req.params.max_wait_ms or 5000
-
-      -- Load files first
-      local load_results = lsp_extra.ensure_files_loaded(files, { reload_mode = reload_mode })
-
-      -- Wait for LSP readiness and diagnostic updates
-      local wait_result = lsp_extra.smart_refresh_and_wait(files, { max_wait_ms = max_wait_ms })
-
-      return res:text(vim.json.encode({
-        load_results = load_results,
-        wait_result = wait_result,
-        success = load_results.success and wait_result.success,
-        total_wait_time_ms = wait_result.total_wait_time_ms,
-        message = string.format("Loaded %d files and waited %dms for LSP readiness",
-                               #files, wait_result.total_wait_time_ms or 0)
-      }), "application/json"):send()
-    end
-  })
   -- Comprehensive symbol analysis tool (chaining multiple LSP operations)
   mcphub.add_tool(server_name, {
-    name = "analyze_symbol_comprehensive",
+    name = "analyze_symbol",
     description = "🔍 POWER ANALYSIS TOOL: Perform comprehensive symbol analysis combining hover, definition, references, and document symbols in one operation. More efficient than individual LSP calls when you need complete symbol understanding. Perfect for deep diagnostic investigation.",
     inputSchema = {
       type = "object",
@@ -322,15 +377,15 @@ function M.register_enhanced_tools(mcphub, server_name, server_config)
       required = { "file", "line", "column" }
     },
     handler = function(_req, res)
-      local analysis = lsp_extra.analyze_symbol_comprehensive(_req.params.file, _req.params.line, _req.params.column)
+      local analysis = lsp_extra.analyze_symbol(_req.params.file, _req.params.line, _req.params.column)
       return res:text(vim.json.encode(analysis), "application/json"):send()
     end
   })
 
   -- Diagnostic context analysis tool
   mcphub.add_tool(server_name, {
-    name = "analyze_diagnostic_context",
-    description = "🎯 DIAGNOSTIC DEEP DIVE: Analyze a specific diagnostic with comprehensive context including symbol analysis, code actions, and related diagnostics. Use this for complex errors that need thorough investigation before fixing.",
+    name = "analyze_diagnostics",
+    description = "🎯 DIAGNOSTIC DEEP DIVE: Analyze specific diagnostics with comprehensive context including symbol analysis, code actions, and related diagnostics. Use this for complex errors that need thorough investigation before fixing.",
     inputSchema = {
       type = "object",
       properties = {
@@ -347,7 +402,7 @@ function M.register_enhanced_tools(mcphub, server_name, server_config)
         return res:text(vim.json.encode({ error = "Diagnostic not found at specified index" }), "application/json"):send()
       end
 
-      local analysis = lsp_extra.analyze_diagnostic_context(_req.params.file, diagnostic)
+      local analysis = lsp_extra.analyze_diagnostics(_req.params.file, diagnostic)
       return res:text(vim.json.encode(analysis), "application/json"):send()
     end
   })
@@ -362,22 +417,6 @@ function M.register_enhanced_tools(mcphub, server_name, server_config)
     end
   })
 
-  -- File deletion handler
-  mcphub.add_tool(server_name, {
-    name = "handle_file_deleted",
-    description = "🗑️ FILE CLEANUP: Properly handle deleted files by notifying LSP servers and cleaning up buffers. Use when files are deleted externally to ensure LSP clients don't maintain stale references.",
-    inputSchema = {
-      type = "object",
-      properties = {
-        file = { type = "string", description = "Path of the deleted file" }
-      },
-      required = { "file" }
-    },
-    handler = function(_req, res)
-      lsp_extra.handle_file_deleted(_req.params.file)
-      return res:text(vim.json.encode({ message = "File deletion handled", file = _req.params.file }), "application/json"):send()
-    end
-  })
 end
 
 function M.register_file_refresh_tools(mcphub, server_name, server_config)
@@ -386,7 +425,7 @@ function M.register_file_refresh_tools(mcphub, server_name, server_config)
   -- refresh_after_external_changes tool
   mcphub.add_tool(server_name, {
     name = "refresh_after_external_changes",
-    description = "🔄 ESSENTIAL: Force refresh all watched files after external changes with smart diagnostic waiting. No more sleep delays - uses event-driven LSP readiness detection. Use this when you've made changes outside of Neovim.",
+    description = "🔄 ESSENTIAL: Force refresh all watched files after external changes (modifications and deletions) with smart diagnostic waiting. No more sleep delays - uses event-driven LSP readiness detection. Handles file deletions and general refresh. Use this when you've made changes outside of Neovim.",
     inputSchema = {
       type = "object",
       properties = {
@@ -395,7 +434,11 @@ function M.register_file_refresh_tools(mcphub, server_name, server_config)
           items = { type = "string" },
           description = "Specific files to monitor for diagnostic updates (optional)"
         },
-        max_wait_ms = {
+        deleted_files = {
+          type = "array",
+          items = { type = "string" },
+          description = "Files that were deleted (optional)"
+        },        max_wait_ms = {
           type = "number",
           description = "Maximum time to wait for diagnostic updates in milliseconds (default: 5000)"
         }
@@ -403,34 +446,27 @@ function M.register_file_refresh_tools(mcphub, server_name, server_config)
     },
     handler = function(_req, res)
       local files = _req.files or {}
+      local deleted_files = _req.deleted_files or {}
       local max_wait_ms = _req.max_wait_ms or 5000
 
-      local result = lsp_extra.smart_refresh_and_wait(files, { max_wait_ms = max_wait_ms })
+      -- Handle file deletions first if specified
+      local deletion_results = {}
+      if #deleted_files > 0 then
+        for _, filepath in ipairs(deleted_files) do
+          lsp_extra.handle_file_deleted(filepath)
+          deletion_results[filepath] = { deleted = true }
+        end
+      end
+      -- Use the improved unified refresh system
+      local unified_refresh = require("mcp-diagnostics.shared.unified_refresh")
+      local result = unified_refresh.refresh_after_external_changes(files, max_wait_ms)
 
 return res:text(vim.json.encode({
-        message = string.format("Smart refresh completed in %dms", result.total_wait_time_ms or 0),
+        message = result.message or "External refresh completed",
         success = result.success,
-        refresh_result = result.refresh_result,
-        lsp_ready_result = result.lsp_ready_result,
-        diagnostic_update_result = result.diagnostic_update_result,
-        total_wait_time_ms = result.total_wait_time_ms
-      }), "application/json"):send()
-    end
-  })
-
-  -- check_file_staleness tool
-  mcphub.add_tool(server_name, {
-    name = "check_file_staleness",
-    description = "🔍 DIAGNOSTIC: Check if any watched files have been modified externally and are out of sync. Use this to identify files that might need refreshing before running LSP operations.",
-    inputSchema = {
-      type = "object",
-      properties = {}
-    },
-    handler = function(_req, res)
-      local stale_files = lsp_extra.check_all_files_staleness()
-      return res:text(vim.json.encode({
-        message = string.format("Found %d potentially stale files", #stale_files),
-        stale_files = stale_files
+        details = result,
+        deletions = deletion_results,
+        deleted_count = #deleted_files
       }), "application/json"):send()
     end
   })

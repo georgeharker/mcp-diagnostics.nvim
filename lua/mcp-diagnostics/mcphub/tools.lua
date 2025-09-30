@@ -1,4 +1,3 @@
-
 local M = {}
 local diagnostics = require("mcp-diagnostics.shared.diagnostics")
 local lsp = require("mcp-diagnostics.shared.lsp")
@@ -14,17 +13,51 @@ end
 function M.register_diagnostic_tools(mcphub, server_name, server_config)
   server_config = server_config or {}
 
-  -- diagnostics_get tool
+  -- document_diagnostics tool - for current document
   mcphub.add_tool(server_name, {
-    name = "diagnostics_get",
-    description = "Get diagnostics for specified files with optional filtering",
+    name = "document_diagnostics",
+    description = "Get diagnostics for the current document/buffer",
+    inputSchema = {
+      type = "object",
+      properties = {
+        severity = {
+          type = "string",
+          enum = { "error", "warn", "info", "hint" },
+          description = "Filter by severity level"
+        },
+        source = {
+          type = "string",
+          description = "Filter by diagnostic source (e.g. 'pylsp', 'eslint')"
+        }
+      }
+    },
+    handler = function(_req, res)
+      local severity = _req.params.severity
+      local source = _req.params.source
+
+      -- Get current buffer file
+      local current_file = vim.api.nvim_buf_get_name(0)
+      if current_file == "" then
+        return res:error("No file is currently open"):send()
+      end
+
+      local files = { current_file }
+      local diag_results = diagnostics.get_all_diagnostics(files, severity, source)
+      return res:text(vim.json.encode(diag_results), "application/json"):send()
+    end
+  })
+
+  -- workspace_diagnostics tool - for all loaded files
+  mcphub.add_tool(server_name, {
+    name = "workspace_diagnostics",
+    description = "Get diagnostics for all files in the workspace",
     inputSchema = {
       type = "object",
       properties = {
         files = {
           type = "array",
           items = { type = "string" },
-          description = "Files to get diagnostics for (all if not specified)"
+          description = "Specific files to analyze (all loaded files if not specified)"
         },
         severity = {
           type = "string",
