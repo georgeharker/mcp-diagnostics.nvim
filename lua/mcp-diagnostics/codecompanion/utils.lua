@@ -254,8 +254,8 @@ function M.display_result(result, tool_name)
     local buf = vim.api.nvim_create_buf(false, true)
     local lines = vim.split(content, "\n")
     vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-    vim.api.nvim_buf_set_option(buf, "filetype", "text")
-    vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
+    vim.api.nvim_set_option_value("filetype", "text", { buf = buf })
+    vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
 
     -- Open in a split
     vim.cmd("split")

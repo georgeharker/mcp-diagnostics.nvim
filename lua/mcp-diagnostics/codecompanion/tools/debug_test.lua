@@ -51,6 +51,6 @@ M.debug_test = setmetatable({
         }
     },
     output = BaseTool:create_output_handlers("Debug Test")
-}, { __index = BaseTool })
+}, BaseTool )
 
 return M

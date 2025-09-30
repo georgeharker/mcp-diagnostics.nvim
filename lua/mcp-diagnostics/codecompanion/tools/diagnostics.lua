@@ -41,8 +41,8 @@ M.lsp_document_diagnostics = setmetatable({
 
             -- If we're in a CodeCompanion chat buffer, try to find a better buffer
             local current_buf = vim.api.nvim_get_current_buf()
-            local current_buftype = vim.api.nvim_buf_get_option(current_buf, "buftype")
-            local current_filetype = vim.api.nvim_buf_get_option(current_buf, "filetype")
+            local current_buftype = vim.api.nvim_get_option_value("buftype", { buf = current_buf })
+            local current_filetype = vim.api.nvim_get_option_value("filetype", { buf = current_buf })
 
             -- If current buffer is a chat buffer or has no file, find the most recent file buffer
             if
@@ -51,14 +51,12 @@ M.lsp_document_diagnostics = setmetatable({
                 or current_filetype == "codecompanion"
             then
                 -- Look for the most recently used buffer with a real file
-                local _best_buf = nil
-                local best_file = nil
 
                 for _, buf in ipairs(vim.api.nvim_list_bufs()) do
                     if vim.api.nvim_buf_is_valid(buf) and vim.api.nvim_buf_is_loaded(buf) then
                         local buf_name = vim.api.nvim_buf_get_name(buf)
-                        local buf_type = vim.api.nvim_buf_get_option(buf, "buftype")
-                        local buf_ft = vim.api.nvim_buf_get_option(buf, "filetype")
+                        local buf_type = vim.api.nvim_get_option_value("buftype", { buf = buf })
+                        local buf_ft = vim.api.nvim_get_option_value("filetype", { buf = buf })
 
                         -- Skip special buffers (chat, help, etc.)
                         if
@@ -69,22 +67,15 @@ M.lsp_document_diagnostics = setmetatable({
                             and not buf_name:match("^%s*$")
                         then
                             -- This looks like a real file buffer
-                            _best_buf = buf
-                            best_file = buf_name
-                            break -- Take the first valid one we find
+                            current_file = buf_name
+                            break
                         end
                     end
                 end
 
-                if best_file then
-                    current_file = best_file
-                else
+                if current_file == "" then
                     return self:error(nil, nil, "No file is currently open or available for analysis")
                 end
-            end
-
-            if current_file == "" then
-                return self:error(nil, nil, "No file is currently open or available for analysis")
             end
 
             -- ENHANCED: Validate file loading and LSP availability

@@ -89,6 +89,6 @@ M.lsp_workspace_symbols = setmetatable({
         }
     },
     output = BaseTool:create_output_handlers("LSP Workspace Symbols")
-}, { __index = BaseTool })
+}, BaseTool)
 
 return M

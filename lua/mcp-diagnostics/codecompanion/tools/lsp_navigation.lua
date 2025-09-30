@@ -155,7 +155,7 @@ M.lsp_definition = setmetatable({
         }
     },
     output = BaseTool:create_output_handlers("LSP Definitions")
-}, { __index = BaseTool })
+}, BaseTool)
 
 -- LSP References Tool
 M.lsp_references = setmetatable({
@@ -232,6 +232,6 @@ M.lsp_references = setmetatable({
         }
     },
     output = BaseTool:create_output_handlers("LSP References")
-}, { __index = BaseTool })
+}, BaseTool)
 
 return M

@@ -107,6 +107,6 @@ M.lsp_code_actions = setmetatable({
         }
     },
     output = BaseTool:create_output_handlers("LSP Code Actions")
-}, { __index = BaseTool })
+}, BaseTool)
 
 return M

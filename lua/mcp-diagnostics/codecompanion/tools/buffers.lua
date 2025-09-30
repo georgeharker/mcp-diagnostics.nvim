@@ -21,16 +21,16 @@ M.buffer_status = setmetatable({
         ["function"] = {
             name = "buffer_status",
             description = "Get status of all loaded buffers including file paths and diagnostic counts",
-            parameters = {
-                type = "object",
-                properties = {},
-                additionalProperties = false
-            },
+            -- parameters = {
+            --     type = "object",
+            --     properties = {},
+            --     additionalProperties = false
+            -- },
             strict = true
         }
     },
     output = BaseTool:create_output_handlers("Buffer Status")
-}, { __index = BaseTool })
+}, BaseTool)
 
 -- Ensure Files Loaded Tool
 M.ensure_files_loaded = setmetatable({
@@ -96,7 +96,7 @@ M.ensure_files_loaded = setmetatable({
         }
     },
     output = BaseTool:create_output_handlers("File Loading Results")
-}, { __index = BaseTool })
+}, BaseTool)
 
 -- Refresh After External Changes Tool
 M.refresh_after_external_changes = setmetatable({
@@ -147,6 +147,6 @@ M.refresh_after_external_changes = setmetatable({
         }
     },
     output = BaseTool:create_output_handlers("Refresh Results")
-}, { __index = BaseTool })
+}, BaseTool)
 
 return M

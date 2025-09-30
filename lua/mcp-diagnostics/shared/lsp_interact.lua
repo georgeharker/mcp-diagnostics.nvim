@@ -16,30 +16,10 @@ local LSP_METHODS = {
     did_change = vim.lsp.protocol.Methods.textDocument_didChange,
 }
 
+local buffers = require("mcp-diagnostics.shared.buffers")
 local M = {}
 
 local file_states = {}
-
- -- Setup detection for when user intentionally edits a hidden buffer
- local function setup_user_edit_detection(bufnr, filepath)
-   -- Set up autocmd to detect when buffer becomes visible due to user action
-   vim.api.nvim_create_autocmd({"BufWinEnter", "BufEnter"}, {
-     buffer = bufnr,
-     once = true, -- Only trigger once
-     callback = function()
-       -- Check if buffer is now listed (indicating user action)
-       local is_listed = vim.api.nvim_buf_get_option(bufnr, 'buflisted')
-       local is_hidden = vim.api.nvim_buf_get_option(bufnr, 'bufhidden')
-
-       if is_listed and is_hidden == 'hide' then
-         -- User has made buffer listed (via :edit or similar), make it fully visible
-         vim.api.nvim_buf_set_option(bufnr, 'bufhidden', '')
-         config.log_debug(string.format("Buffer %d (%s) made fully visible by user action", bufnr, filepath), "[LSP Interact]")
-       end
-     end,
-     desc = "Make hidden buffer fully visible when user edits it"
-   })
- end
 
 local function get_lsp_clients(bufnr)
     return vim.lsp.get_clients({ bufnr = bufnr })
@@ -176,49 +156,25 @@ function M.ensure_file_loaded(filepath)
     return nil, false, "File not readable"
   end
 
-  -- First, try to find existing buffer (reuse where possible)
-  local bufnr = vim.fn.bufnr(filepath)
-  local buffer_created = false
-
-  if bufnr == -1 then
-    -- Buffer doesn't exist, create it as unlisted/hidden
-    bufnr = vim.fn.bufnr(filepath, true)
-    buffer_created = true
-
-    -- Make the buffer unlisted and hidden so it doesn't appear in CodeCompanion UI
-    vim.api.nvim_buf_set_option(bufnr, 'buflisted', false)
-    vim.api.nvim_buf_set_option(bufnr, 'bufhidden', 'hide')
-
-    -- Set up autocmd to make buffer visible when user intentionally edits it
-    vim.schedule(function()
-      setup_user_edit_detection(bufnr, filepath)
-    end)
-
-    config.log_debug(string.format("Created unlisted buffer %d for file: %s", bufnr, filepath), "[LSP Interact]")
-  else
-    -- Buffer exists - reuse it
-    config.log_debug(string.format("Reusing existing buffer %d for file: %s", bufnr, filepath), "[LSP Interact]")
+  -- Use centralized buffer loading with file watcher integration
+  local enable_file_watcher = config.is_feature_enabled('auto_reload_files')
+  local bufnr, loaded, buffer_created = buffers.ensure_buffer_loaded(
+    filepath, enable_file_watcher, "[LSP Interact]"
+  )
+  
+  if not loaded then
+    return nil, false, "Failed to load buffer"
   end
-
-  -- Load buffer if not loaded (but don't force reload)
-  if not vim.api.nvim_buf_is_loaded(bufnr) then
-    vim.fn.bufload(bufnr)
-
-    -- Notify LSP of file opening (only for newly loaded buffers)
-    vim.schedule(function()
-      notify_lsp_file_opened(filepath, bufnr)
-    end)
-  elseif buffer_created then
-    -- Even if buffer was loaded, notify LSP if we just created it
+  
+  -- Notify LSP of file opening for new or newly loaded buffers
+  if buffer_created or not vim.api.nvim_buf_is_loaded(bufnr) then
     vim.schedule(function()
       notify_lsp_file_opened(filepath, bufnr)
     end)
   end
 
-  local loaded = vim.api.nvim_buf_is_loaded(bufnr)
-
-  -- Set up file watcher if auto-reload is enabled
-  if loaded and config.is_feature_enabled('auto_reload_files') then
+  -- File watcher is already set up by buffer_utils if enabled
+  if loaded then
     local file_watcher = require("mcp-diagnostics.shared.file_watcher")
     file_watcher.setup_watcher(filepath, bufnr, "[LSP Interact]")
   end
