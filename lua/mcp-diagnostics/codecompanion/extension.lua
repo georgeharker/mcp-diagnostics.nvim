@@ -223,13 +223,12 @@ function Extension.setup(extension_opts)
     -- Set flag for health checks
     vim.g.mcp_diagnostics_codecompanion_setup = true
 
-    vim.notify(
-        string.format(
-            "[MCP Diagnostics] Extension setup initiated with %d tools including debug_test",
-            #opts.enabled_tools
-        ),
-        vim.log.levels.INFO
-    )
+    if opts.debug then
+        vim.notify(
+            "[MCP Diagnostics] Debug mode enabled - verbose logging active",
+            vim.log.levels.INFO
+        )
+    end
 
     -- Get CodeCompanion config
     local ok, config = pcall(require, "codecompanion.config")
@@ -291,13 +290,15 @@ function Extension.setup(extension_opts)
             end
         end
 
-        vim.notify(
-            string.format(
-                "[MCP Diagnostics] Extension setup completed - %d tools registered",
-                #opts.enabled_tools
-            ),
-            vim.log.levels.INFO
-        )
+        if opts.debug then
+            vim.notify(
+                string.format(
+                    "[MCP Diagnostics] Extension setup completed - %d tools registered",
+                    #opts.enabled_tools
+                ),
+                vim.log.levels.INFO
+            )
+        end
     else
         vim.notify(
             "[MCP Diagnostics] Warning: Could not access CodeCompanion tools config",
@@ -305,13 +306,15 @@ function Extension.setup(extension_opts)
         )
     end
 
-    vim.notify(
-        string.format(
-            "[MCP Diagnostics] Extension setup completed - %d tools registered in group (including debug_test)",
-            #opts.enabled_tools
-        ),
-        vim.log.levels.INFO
-    )
+    if opts.debug then
+        vim.notify(
+            string.format(
+                "[MCP Diagnostics] Extension setup completed - %d tools registered in group (including debug_test)",
+                #opts.enabled_tools
+            ),
+            vim.log.levels.INFO
+        )
+    end
 
     -- Register variables if they exist
     local variable_definitions_ok, variable_definitions =
@@ -332,7 +335,7 @@ function Extension.setup(extension_opts)
             end
         end
 
-        if registered_variables > 0 then
+        if registered_variables > 0 and opts.debug then
             vim.notify(
                 string.format(
                     "[MCP Diagnostics] %d variables registered: %s",
