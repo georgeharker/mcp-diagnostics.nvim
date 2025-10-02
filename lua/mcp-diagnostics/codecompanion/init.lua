@@ -30,7 +30,8 @@ local default_opts = {
     max_diagnostics = 50,
     max_references = 20,
     show_source = true,
-    auto_register = false  -- Route 2: Enable automatic dynamic registration with CodeCompanion
+    auto_register = false,  -- Route 2: Enable automatic dynamic registration with CodeCompanion
+    debug = false
 }
 
 --- Setup global CodeCompanion-related options without directly registering tools
@@ -46,14 +47,16 @@ function M.setup(opts)
     -- Set flag for health checks
     vim.g.mcp_diagnostics_codecompanion_setup = true
 
-    vim.notify(
-        string.format("[MCP Diagnostics] CodeCompanion mode setup completed (%d tools, %d variables). ",
-            #opts.enabled_tools, #opts.enabled_variables) ..
-        (opts.auto_register and "Auto-registration enabled." or
-         "Remember to register the extension in CodeCompanion's config:\n" ..
-         "extensions = { mcp_diagnostics = { callback = 'mcp-diagnostics.codecompanion.extension', opts = {} } }"),
-        vim.log.levels.INFO
-    )
+    if opts.debug then
+        vim.notify(
+            string.format("[MCP Diagnostics] CodeCompanion mode setup completed (%d tools, %d variables). ",
+                #opts.enabled_tools, #opts.enabled_variables) ..
+            (opts.auto_register and "Auto-registration enabled." or
+             "Remember to register the extension in CodeCompanion's config:\n" ..
+             "extensions = { mcp_diagnostics = { callback = 'mcp-diagnostics.codecompanion.extension', opts = {} } }"),
+            vim.log.levels.INFO
+        )
+    end
 
     -- Route 2: Dynamic registration if auto_register is enabled
     if opts.auto_register then
@@ -64,9 +67,13 @@ function M.setup(opts)
                 callback = "mcp-diagnostics.codecompanion.extension",
                 opts = opts
             })
-            vim.notify("[MCP Diagnostics] Dynamically registered extension with CodeCompanion", vim.log.levels.INFO)
+            if opts.debug then
+                vim.notify("[MCP Diagnostics] Dynamically registered extension with CodeCompanion", vim.log.levels.INFO)
+            end
         else
-            vim.notify("[MCP Diagnostics] auto_register=true but CodeCompanion not available or doesn't support register_extension", vim.log.levels.ERROR)
+            if opts.debug then
+                vim.notify("[MCP Diagnostics] auto_register=true but CodeCompanion not available or doesn't support register_extension", vim.log.levels.ERROR)
+            end
         end
     end
 
